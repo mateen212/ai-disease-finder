@@ -1,0 +1,46 @@
+INFO:__main__:Directories created/verified
+INFO:__main__:============================================================
+INFO:__main__:TRAINING RANDOM FOREST CLASSIFIER
+INFO:__main__:============================================================
+INFO:__main__:Loaded 2000 samples
+INFO:__main__:Class distribution:
+diagnosis
+covid19      517
+none         514
+pneumonia    513
+dengue       456
+Name: count, dtype: int64
+INFO:src.data_preprocessing:Dataset prepared: 1600 train, 400 test samples
+INFO:src.ml_models:Training Random Forest model...
+INFO:src.ml_models:Train Accuracy: 0.9981, Val Accuracy: 0.9900
+INFO:__main__:Training completed: {'train_accuracy': 0.998125, 'n_features': 15, 'n_classes': 4, 'val_accuracy': 0.99}
+INFO:src.evaluation:Evaluating Random Forest...
+INFO:__main__:
+Evaluation Results:
+INFO:__main__:Accuracy: 0.990
+INFO:__main__:F1 Score: 0.990
+INFO:src.ml_models:Model saved to models/random_forest_clinical.pkl
+INFO:__main__:Model saved to models/random_forest_clinical.pkl
+INFO:src.evaluation:Confusion matrix saved to outputs/rf_confusion_matrix.png
+INFO:__main__:
+Top 10 Important Features:
+INFO:__main__:              feature  importance
+8           wbc_count    0.256585
+5         temperature    0.190537
+7      platelet_count    0.156363
+6   oxygen_saturation    0.148460
+3       loss_of_taste    0.050812
+1               cough    0.047045
+4                rash    0.032115
+0               fever    0.031903
+11         chest_pain    0.027528
+2             fatigue    0.021282
+INFO:__main__:
+============================================================
+INFO:__main__:TRAINING COMPLETED
+INFO:__main__:============================================================
+INFO:__main__:
+Trained models saved in: models/
+INFO:__main__:Evaluation results saved in: outputs/
+INFO:__main__:
+To use the system, run: python main.py --help

@@ -1,0 +1,176 @@
+{
+  "patient_data": {
+    "symptoms": {
+      "fever": true,
+      "headache": false,
+      "cough": true,
+      "rash": false,
+      "nausea": false,
+      "vomiting": false,
+      "fatigue": true,
+      "body_aches": true,
+      "myalgia": false,
+      "arthralgia": false,
+      "retro_orbital_pain": false,
+      "chest_pain": true,
+      "shortness_of_breath": true,
+      "difficulty_breathing": true,
+      "abdominal_pain": false,
+      "persistent_vomiting": false,
+      "bleeding": false,
+      "loss_of_taste": false,
+      "loss_of_smell": false
+    },
+    "vitals": {
+      "temperature": 38.8,
+      "heart_rate": 95,
+      "respiratory_rate": 26,
+      "blood_pressure_systolic": 118,
+      "blood_pressure_diastolic": 78,
+      "oxygen_saturation": 90
+    },
+    "labs": {
+      "platelet_count": 220000,
+      "wbc_count": 12500,
+      "lymphocyte_percentage": 15,
+      "neutrophil_percentage": 80,
+      "hemoglobin": 13.8,
+      "hematocrit": 40
+    },
+    "demographics": {
+      "age": 65,
+      "gender": "M",
+      "travel_history": false,
+      "contact_history": false,
+      "vaccination_status": "full"
+    }
+  },
+  "diagnosis": [
+    "covid19",
+    0.8815874800137377
+  ],
+  "all_disease_scores": {
+    "covid19": 0.8815874800137377,
+    "pneumonia": 0.30382352037811755
+  },
+  "risk_level": "severe",
+  "rule_results": {
+    "scores": {
+      "dengue": 0.0,
+      "covid19": 0.75,
+      "pneumonia": 0.75
+    },
+    "fired_rules": 4,
+    "trace": [
+      {
+        "name": "COVID19_Rule_Classic",
+        "description": "Classic COVID-19 presentation",
+        "fired": true,
+        "disease": "covid19",
+        "confidence": "high",
+        "boost": 0.35
+      },
+      {
+        "name": "COVID19_Respiratory_Distress",
+        "description": "COVID-19 with respiratory involvement",
+        "fired": true,
+        "disease": "covid19",
+        "confidence": "medium",
+        "boost": 0.4
+      },
+      {
+        "name": "Pneumonia_Rule_Classic",
+        "description": "Classic pneumonia presentation",
+        "fired": true,
+        "disease": "pneumonia",
+        "confidence": "high",
+        "boost": 0.35
+      },
+      {
+        "name": "Pneumonia_Severe",
+        "description": "Severe pneumonia indicators",
+        "fired": true,
+        "disease": "pneumonia",
+        "confidence": "medium",
+        "boost": 0.4
+      }
+    ]
+  },
+  "ml_results": {
+    "rf_scores": {
+      "covid19": 0.9605399680219803,
+      "dengue": 0.002467839197647111,
+      "none": 0.0008745601753846502,
+      "pneumonia": 0.03611763260498818
+    },
+    "cnn_scores": null
+  },
+  "fusion_result": {
+    "disease_scores": {
+      "covid19": 0.8815874800137377,
+      "pneumonia": 0.30382352037811755
+    },
+    "all_scores": {
+      "covid19": 0.8815874800137377,
+      "acne": 0.0,
+      "psoriasis": 0.0,
+      "melanoma": 0.0,
+      "dengue": 0.0015423994985294441,
+      "pneumonia": 0.30382352037811755,
+      "eczema": 0.0
+    },
+    "risk_assessments": {
+      "dengue": "low",
+      "covid19": "severe",
+      "pneumonia": "severe"
+    },
+    "overall_risk": "severe",
+    "component_contributions": {
+      "rule_based": {
+        "dengue": 0.0,
+        "covid19": 0.75,
+        "pneumonia": 0.75
+      },
+      "random_forest": {
+        "dengue": 0.002467839197647111,
+        "covid19": 0.9605399680219803,
+        "pneumonia": 0.03611763260498818
+      },
+      "cnn": {}
+    },
+    "fusion_strategy": "weighted_average",
+    "weights_used": {
+      "rule_based": 0.3,
+      "random_forest": 0.5,
+      "cnn": 0.2
+    },
+    "top_predictions": [
+      [
+        "covid19",
+        0.8815874800137377
+      ],
+      [
+        "pneumonia",
+        0.30382352037811755
+      ]
+    ],
+    "primary_diagnosis": [
+      "covid19",
+      0.8815874800137377
+    ]
+  },
+  "recommendations": [
+    "\u26a0\ufe0f URGENT: Immediate medical attention required",
+    "Consider emergency department evaluation",
+    "COVID-19-specific:",
+    "  - Perform RT-PCR or rapid antigen test",
+    "  - Monitor oxygen saturation",
+    "  - Isolate from household members",
+    "  - Consider antiviral treatment if high risk",
+    "\nGeneral Monitoring:",
+    "  - Keep record of symptoms and vital signs",
+    "  - Seek re-evaluation if symptoms worsen"
+  ],
+  "explanation": "============================================================\nCLINICAL DECISION SUPPORT SYSTEM - EXPLANATION REPORT\n============================================================\n\nPrimary Diagnosis: COVID19\nConfidence: 88.2%\nRisk Level: SEVERE\n\n------------------------------------------------------------\nSYMBOLIC REASONING (Rule-Based)\n------------------------------------------------------------\n\n4 diagnostic rule(s) activated:\n\n\u2713 COVID19_Rule_Classic\n  Description: Classic COVID-19 presentation\n  Disease: covid19\n  Confidence: high\n  Probability Boost: +0.35\n\n\u2713 COVID19_Respiratory_Distress\n  Description: COVID-19 with respiratory involvement\n  Disease: covid19\n  Confidence: medium\n  Probability Boost: +0.40\n\n\u2713 Pneumonia_Rule_Classic\n  Description: Classic pneumonia presentation\n  Disease: pneumonia\n  Confidence: high\n  Probability Boost: +0.35\n\n\u2713 Pneumonia_Severe\n  Description: Severe pneumonia indicators\n  Disease: pneumonia\n  Confidence: medium\n  Probability Boost: +0.40\n\n------------------------------------------------------------\nNEURAL NETWORK REASONING (ML Model)\n------------------------------------------------------------\n\nSHAP explainer not available\n\n------------------------------------------------------------\nNEURO-SYMBOLIC FUSION\n------------------------------------------------------------\n\nComponent-wise confidence scores:\n\nRule Based:\n  \u2022 covid19: 75.0%\n  \u2022 pneumonia: 75.0%\n\nRandom Forest:\n  \u2022 covid19: 96.1%\n  \u2022 pneumonia: 3.6%\n  \u2022 dengue: 0.2%\n\n------------------------------------------------------------\nINTEGRATED DISEASE PROBABILITIES\n------------------------------------------------------------\n\ncovid19         \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2591\u2591\u2591\u2591\u2591 88.2%\npneumonia       \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591 30.4%\n\n============================================================",
+  "patient_report": "\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557\n\u2551                    CLINICAL DIAGNOSTIC REPORT                                \u2551\n\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d\n\n\ud83d\udccb PATIENT SUMMARY\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nAge: 65\nGender: M\n\n\ud83d\udd0d PRESENTING SYMPTOMS\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  \u2713 Fever\n  \u2713 Cough\n  \u2713 Fatigue\n  \u2713 Body Aches\n  \u2713 Chest Pain\n  \u2713 Shortness Of Breath\n  \u2713 Difficulty Breathing\n\n\ud83e\ude7a VITAL SIGNS\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  Temperature: 38.8\n  Heart Rate: 95\n  Respiratory Rate: 26\n  Blood Pressure Systolic: 118\n  Blood Pressure Diastolic: 78\n  Oxygen Saturation: 90\n\n\ud83e\uddea LABORATORY RESULTS\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  Platelet Count: 220000\n  Wbc Count: 12500\n  Lymphocyte Percentage: 15\n  Neutrophil Percentage: 80\n  Hemoglobin: 13.8\n  Hematocrit: 40\n\n\ud83c\udfaf DIAGNOSIS\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nPrimary: COVID19\nConfidence: 88.2%\nRisk Level: SEVERE\n\n\ud83d\udcca EXPLANATION\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n============================================================\nCLINICAL DECISION SUPPORT SYSTEM - EXPLANATION REPORT\n============================================================\n\nPrimary Diagnosis: COVID19\nConfidence: 88.2%\nRisk Level: SEVERE\n\n------------------------------------------------------------\nSYMBOLIC REASONING (Rule-Based)\n------------------------------------------------------------\n\n4 diagnostic rule(s) activated:\n\n\u2713 COVID19_Rule_Classic\n  Description: Classic COVID-19 presentation\n  Disease: covid19\n  Confidence: high\n  Probability Boost: +0.35\n\n\u2713 COVID19_Respiratory_Distress\n  Description: COVID-19 with respiratory involvement\n  Disease: covid19\n  Confidence: medium\n  Probability Boost: +0.40\n\n\u2713 Pneumonia_Rule_Classic\n  Description: Classic pneumonia presentation\n  Disease: pneumonia\n  Confidence: high\n  Probability Boost: +0.35\n\n\u2713 Pneumonia_Severe\n  Description: Severe pneumonia indicators\n  Disease: pneumonia\n  Confidence: medium\n  Probability Boost: +0.40\n\n------------------------------------------------------------\nNEURAL NETWORK REASONING (ML Model)\n------------------------------------------------------------\n\nSHAP explainer not available\n\n------------------------------------------------------------\nNEURO-SYMBOLIC FUSION\n------------------------------------------------------------\n\nComponent-wise confidence scores:\n\nRule Based:\n  \u2022 covid19: 75.0%\n  \u2022 pneumonia: 75.0%\n\nRandom Forest:\n  \u2022 covid19: 96.1%\n  \u2022 pneumonia: 3.6%\n  \u2022 dengue: 0.2%\n\n------------------------------------------------------------\nINTEGRATED DISEASE PROBABILITIES\n------------------------------------------------------------\n\ncovid19         \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2591\u2591\u2591\u2591\u2591 88.2%\npneumonia       \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591 30.4%\n\n============================================================\n\n\ud83d\udc8a RECOMMENDATIONS\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\u26a0\ufe0f URGENT: Immediate medical attention required\nConsider emergency department evaluation\nCOVID-19-specific:\n  - Perform RT-PCR or rapid antigen test\n  - Monitor oxygen saturation\n  - Isolate from household members\n  - Consider antiviral treatment if high risk\n\nGeneral Monitoring:\n  - Keep record of symptoms and vital signs\n  - Seek re-evaluation if symptoms worsen\n\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\u26a0\ufe0f  DISCLAIMER: This report is generated by an AI system for\n   educational purposes. It should NOT replace professional\n   medical judgment. Always consult healthcare providers.\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"
+}

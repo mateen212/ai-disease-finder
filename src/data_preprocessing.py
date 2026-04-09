@@ -71,7 +71,7 @@ class DataPreprocessor:
             transforms.RandomHorizontalFlip(),
             transforms.RandomRotation(20),
             transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
-            transforms.RandomAffineTransform(degrees=0, translate=(0.2, 0.2)),
+            transforms.RandomAffine(degrees=0, translate=(0.2, 0.2)),
             transforms.ToTensor(),
             transforms.Normalize(mean=norm_mean, std=norm_std)
         ])
@@ -176,19 +176,20 @@ class DataPreprocessor:
         y = data[target_column]
         X = data.drop(columns=[target_column])
         
-        # Handle missing values
-        X_imputed = pd.DataFrame(
-            self.imputer.fit_transform(X),
-            columns=X.columns,
-            index=X.index
-        )
-        
-        # Encode categorical variables
-        categorical_cols = X_imputed.select_dtypes(include=['object']).columns
+        # Encode categorical variables first
+        categorical_cols = X.select_dtypes(include=['object', 'category']).columns
+        X_encoded = X.copy()
         for col in categorical_cols:
             le = LabelEncoder()
-            X_imputed[col] = le.fit_transform(X_imputed[col].astype(str))
+            X_encoded[col] = le.fit_transform(X_encoded[col].astype(str))
             self.label_encoders[col] = le
+        
+        # Handle missing values after encoding
+        X_imputed = pd.DataFrame(
+            self.imputer.fit_transform(X_encoded),
+            columns=X_encoded.columns,
+            index=X_encoded.index
+        )
         
         # Scale numerical features
         X_scaled = pd.DataFrame(
@@ -260,10 +261,11 @@ class DataPreprocessor:
         
         # Get image paths and labels
         image_paths = [
-            os.path.join(image_dir, fname) 
+            os.path.join(image_dir, fname + '.jpg') 
             for fname in labels_df['image_id'].values
         ]
-        labels = labels_df['label'].values
+        # Use 'diagnosis' column from HAM10000 metadata
+        labels = labels_df['diagnosis'].values
         
         # Encode labels
         le = LabelEncoder()
