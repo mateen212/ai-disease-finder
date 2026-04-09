@@ -308,7 +308,9 @@ class SkinLesionCNN:
         train_loader: DataLoader,
         val_loader: Optional[DataLoader] = None,
         save_best: bool = True,
-        model_save_path: str = "models/cnn_best.pth"
+        model_save_path: str = "models/cnn_best.pth",
+        start_epoch: int = 0,
+        best_val_acc: float = 0.0
     ) -> Dict[str, List[float]]:
         """
         Train the CNN model.
@@ -318,11 +320,16 @@ class SkinLesionCNN:
             val_loader: Validation data loader (optional)
             save_best: Whether to save best model
             model_save_path: Path to save model
+            start_epoch: Epoch to start/resume from
+            best_val_acc: Best validation accuracy so far (for resume)
         
         Returns:
             Dictionary with training history
         """
-        logger.info("Training CNN model...")
+        if start_epoch > 0:
+            logger.info(f"Resuming training from epoch {start_epoch+1}/{self.epochs}")
+        else:
+            logger.info("Training CNN model...")
         
         history = {
             'train_loss': [],
@@ -331,9 +338,7 @@ class SkinLesionCNN:
             'val_acc': []
         }
         
-        best_val_acc = 0.0
-        
-        for epoch in range(self.epochs):
+        for epoch in range(start_epoch, self.epochs):
             # Training phase
             self.model.train()
             train_loss = 0.0
@@ -382,8 +387,12 @@ class SkinLesionCNN:
                 # Save best model
                 if save_best and val_acc > best_val_acc:
                     best_val_acc = val_acc
-                    self.save(model_save_path)
+                    self.save(model_save_path, epoch=epoch, best_val_acc=best_val_acc)
                     logger.info(f"Best model saved with val_acc={val_acc:.2f}%")
+                
+                # Save checkpoint for resume
+                checkpoint_path = model_save_path.replace('.pth', '_checkpoint.pth')
+                self.save(checkpoint_path, epoch=epoch, best_val_acc=best_val_acc)
             else:
                 logger.info(
                     f"Epoch {epoch+1}: Train Loss={epoch_train_loss:.4f}, "
@@ -476,21 +485,28 @@ class SkinLesionCNN:
             for class_name, prob in zip(self.class_names, probabilities.cpu().numpy())
         }
     
-    def save(self, filepath: str):
-        """Save the trained model"""
+    def save(self, filepath: str, epoch: int = None, best_val_acc: float = None):
+        """Save the trained model with checkpoint info"""
         Path(filepath).parent.mkdir(parents=True, exist_ok=True)
         
-        torch.save({
+        checkpoint = {
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict(),
             'config': self.config,
             'class_names': self.class_names
-        }, filepath)
+        }
+        
+        if epoch is not None:
+            checkpoint['epoch'] = epoch
+        if best_val_acc is not None:
+            checkpoint['best_val_acc'] = best_val_acc
+        
+        torch.save(checkpoint, filepath)
         
         logger.info(f"CNN model saved to {filepath}")
     
-    def load(self, filepath: str):
-        """Load a trained model"""
+    def load(self, filepath: str) -> Dict[str, Any]:
+        """Load a trained model and return checkpoint info"""
         checkpoint = torch.load(filepath, map_location=self.device)
         
         self.model.load_state_dict(checkpoint['model_state_dict'])
@@ -499,6 +515,11 @@ class SkinLesionCNN:
         self.is_trained = True
         
         logger.info(f"CNN model loaded from {filepath}")
+        
+        return {
+            'epoch': checkpoint.get('epoch', 0),
+            'best_val_acc': checkpoint.get('best_val_acc', 0.0)
+        }
 
 
 # Example usage

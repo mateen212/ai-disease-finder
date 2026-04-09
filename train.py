@@ -168,6 +168,23 @@ def train_cnn(args):
     preprocessor = DataPreprocessor()
     cnn_model = SkinLesionCNN()
     
+    # Check for existing checkpoint to resume
+    checkpoint_path = "models/cnn_skin_lesion_checkpoint.pth"
+    start_epoch = 0
+    best_val_acc = 0.0
+    
+    if Path(checkpoint_path).exists():
+        logger.info(f"Found existing checkpoint: {checkpoint_path}")
+        try:
+            checkpoint_info = cnn_model.load(checkpoint_path)
+            start_epoch = checkpoint_info['epoch'] + 1  # Start from next epoch
+            best_val_acc = checkpoint_info['best_val_acc']
+            logger.info(f"✓ Resuming from epoch {start_epoch+1}, best_val_acc={best_val_acc:.2f}%")
+        except Exception as e:
+            logger.warning(f"Could not load checkpoint: {e}. Starting from scratch.")
+            start_epoch = 0
+            best_val_acc = 0.0
+    
     # Prepare dataset
     train_paths, test_paths, train_labels, test_labels = preprocessor.prepare_image_dataset(
         image_dir,
@@ -207,7 +224,9 @@ def train_cnn(args):
         train_loader,
         test_loader,
         save_best=True,
-        model_save_path="models/cnn_skin_lesion.pth"
+        model_save_path="models/cnn_skin_lesion.pth",
+        start_epoch=start_epoch,
+        best_val_acc=best_val_acc
     )
     
     # Evaluate
