@@ -1,0 +1,198 @@
+# Medical Diagnostic Rules
+# Based on WHO/CDC Guidelines
+
+dengue_rules:
+  - name: "Dengue_Rule_Classic"
+    description: "Classic dengue fever presentation"
+    conditions:
+      all:
+        - symptom: "fever"
+          operator: "=="
+          value: true
+        - vital: "temperature"
+          operator: ">="
+          value: 38.5
+      any_2_of:
+        - symptom: "headache"
+          operator: "=="
+          value: true
+        - symptom: "retro_orbital_pain"
+          operator: "=="
+          value: true
+        - symptom: "myalgia"
+          operator: "=="
+          value: true
+        - symptom: "arthralgia"
+          operator: "=="
+          value: true
+        - symptom: "rash"
+          operator: "=="
+          value: true
+        - symptom: "nausea"
+          operator: "=="
+          value: true
+    conclusion:
+      disease: "dengue"
+      probability_boost: 0.4
+      confidence: "high"
+
+  - name: "Dengue_Rule_Lab_Confirmed"
+    description: "Dengue with laboratory findings"
+    conditions:
+      all:
+        - symptom: "fever"
+          operator: "=="
+          value: true
+        - lab: "platelet_count"
+          operator: "<="
+          value: 100000
+        - lab: "wbc_count"
+          operator: "<="
+          value: 5000
+    conclusion:
+      disease: "dengue"
+      probability_boost: 0.5
+      confidence: "very_high"
+
+  - name: "Dengue_Warning_Signs"
+    description: "Severe dengue warning signs"
+    conditions:
+      any:
+        - symptom: "abdominal_pain"
+          operator: "=="
+          value: true
+        - symptom: "persistent_vomiting"
+          operator: "=="
+          value: true
+        - symptom: "bleeding"
+          operator: "=="
+          value: true
+        - lab: "platelet_count"
+          operator: "<"
+          value: 50000
+    conclusion:
+      disease: "dengue"
+      risk_level: "severe"
+      probability_boost: 0.3
+
+covid19_rules:
+  - name: "COVID19_Rule_Classic"
+    description: "Classic COVID-19 presentation"
+    conditions:
+      all:
+        - symptom: "fever"
+          operator: "=="
+          value: true
+      any_2_of:
+        - symptom: "cough"
+          operator: "=="
+          value: true
+        - symptom: "fatigue"
+          operator: "=="
+          value: true
+        - symptom: "loss_of_taste"
+          operator: "=="
+          value: true
+        - symptom: "loss_of_smell"
+          operator: "=="
+          value: true
+        - symptom: "shortness_of_breath"
+          operator: "=="
+          value: true
+        - symptom: "body_aches"
+          operator: "=="
+          value: true
+    conclusion:
+      disease: "covid19"
+      probability_boost: 0.35
+      confidence: "high"
+
+  - name: "COVID19_Respiratory_Distress"
+    description: "COVID-19 with respiratory involvement"
+    conditions:
+      all:
+        - symptom: "shortness_of_breath"
+          operator: "=="
+          value: true
+        - vital: "oxygen_saturation"
+          operator: "<"
+          value: 94
+    conclusion:
+      disease: "covid19"
+      risk_level: "severe"
+      probability_boost: 0.4
+
+pneumonia_rules:
+  - name: "Pneumonia_Rule_Classic"
+    description: "Classic pneumonia presentation"
+    conditions:
+      all:
+        - symptom: "cough"
+          operator: "=="
+          value: true
+        - symptom: "fever"
+          operator: "=="
+          value: true
+      any:
+        - symptom: "chest_pain"
+          operator: "=="
+          value: true
+        - symptom: "shortness_of_breath"
+          operator: "=="
+          value: true
+        - symptom: "difficulty_breathing"
+          operator: "=="
+          value: true
+    conclusion:
+      disease: "pneumonia"
+      probability_boost: 0.35
+      confidence: "high"
+
+  - name: "Pneumonia_Severe"
+    description: "Severe pneumonia indicators"
+    conditions:
+      all:
+        - symptom: "difficulty_breathing"
+          operator: "=="
+          value: true
+        - vital: "oxygen_saturation"
+          operator: "<"
+          value: 92
+    conclusion:
+      disease: "pneumonia"
+      risk_level: "severe"
+      probability_boost: 0.4
+
+# Threshold definitions
+thresholds:
+  vital_signs:
+    fever_temperature: 38.0
+    high_fever_temperature: 39.0
+    normal_oxygen_saturation: 95
+    low_oxygen_saturation: 92
+  
+  lab_values:
+    low_platelet_count: 100000
+    very_low_platelet_count: 50000
+    low_wbc_count: 5000
+    very_low_wbc_count: 3000
+    normal_wbc_count_min: 4000
+    normal_wbc_count_max: 11000
+
+# Risk level definitions
+risk_levels:
+  low:
+    description: "Low risk - outpatient management appropriate"
+    score_range: [0, 0.3]
+  
+  moderate:
+    description: "Moderate risk - close monitoring recommended"
+    score_range: [0.3, 0.6]
+  
+  high:
+    description: "High risk - consider hospitalization"
+    score_range: [0.6, 0.85]
+  
+  severe:
+    description: "Severe - immediate medical attention required"
+    score_range: [0.85, 1.0]
