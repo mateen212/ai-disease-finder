@@ -152,16 +152,27 @@ def train_cnn(args):
     logger.info("TRAINING CNN FOR SKIN LESION CLASSIFICATION")
     logger.info("="*60)
     
-    # Check if image data exists
-    image_dir = "data/skin_lesions/images"
-    labels_file = "data/skin_lesions/labels.csv"
+    # Define the 4 specific disease classes to train on
+    SELECTED_CLASSES = [
+        "Melanoma Skin Cancer Nevi and Moles",
+        "Eczema Photos",
+        "Psoriasis pictures Lichen Planus and related diseases",
+        "Acne and Rosacea Photos"
+    ]
     
-    if not Path(image_dir).exists() or not Path(labels_file).exists():
-        logger.warning("Skin lesion data not found. Skipping CNN training.")
-        logger.info("To train CNN, download skin lesion datasets from Kaggle")
-        logger.info("Expected structure:")
-        logger.info("  data/skin_lesions/images/")
-        logger.info("  data/skin_lesions/labels.csv")
+    logger.info(f"Training on {len(SELECTED_CLASSES)} disease categories:")
+    for i, cls in enumerate(SELECTED_CLASSES, 1):
+        logger.info(f"  {i}. {cls}")
+    
+    # Check if folder-based image data exists
+    train_dir = "data/skin_lesions/train"
+    test_dir = "data/skin_lesions/test"
+    
+    if not Path(train_dir).exists() or not Path(test_dir).exists():
+        logger.warning("Skin lesion folder structure not found. Skipping CNN training.")
+        logger.info("To train CNN, ensure data is in folder structure:")
+        logger.info("  data/skin_lesions/train/<disease_name>/")
+        logger.info("  data/skin_lesions/test/<disease_name>/")
         return None, None
     
     # Initialize
@@ -175,22 +186,43 @@ def train_cnn(args):
     
     if Path(checkpoint_path).exists():
         logger.info(f"Found existing checkpoint: {checkpoint_path}")
+        logger.info(f"Checkpoint file size: {Path(checkpoint_path).stat().st_size / (1024*1024):.2f} MB")
         try:
             checkpoint_info = cnn_model.load(checkpoint_path)
             start_epoch = checkpoint_info['epoch'] + 1  # Start from next epoch
             best_val_acc = checkpoint_info['best_val_acc']
-            logger.info(f"✓ Resuming from epoch {start_epoch+1}, best_val_acc={best_val_acc:.2f}%")
+            logger.info(f"✓ Resuming from epoch {start_epoch}, best_val_acc={best_val_acc:.2f}%")
+            logger.info(f"✓ Training will continue from epoch {start_epoch+1}/{cnn_model.epochs}")
         except Exception as e:
-            logger.warning(f"Could not load checkpoint: {e}. Starting from scratch.")
+            logger.error(f"Could not load checkpoint: {e}. Starting from scratch.")
+            logger.exception("Checkpoint loading error details:")
             start_epoch = 0
             best_val_acc = 0.0
+    else:
+        logger.info(f"No checkpoint found at {checkpoint_path}. Starting fresh training.")
     
-    # Prepare dataset
-    train_paths, test_paths, train_labels, test_labels = preprocessor.prepare_image_dataset(
-        image_dir,
-        labels_file,
-        test_size=0.2
+    # Prepare dataset using folder structure with class filtering
+    train_paths, test_paths, train_labels, test_labels, class_names = preprocessor.prepare_folder_based_image_dataset(
+        train_dir,
+        test_dir,
+        selected_classes=SELECTED_CLASSES
     )
+    
+    # Store class names in the model
+    cnn_model.class_names = class_names
+    cnn_model.num_classes = len(class_names)
+    
+    # Recreate the model with correct number of classes
+    cnn_model.model = cnn_model._create_model(pretrained=(start_epoch == 0))
+    cnn_model.model = cnn_model.model.to(cnn_model.device)
+    
+    # Reinitialize optimizer
+    cnn_model.optimizer = torch.optim.Adam(
+        cnn_model.model.parameters(),
+        lr=cnn_model.learning_rate
+    )
+    
+    logger.info(f"Model configured for {cnn_model.num_classes} classes: {class_names}")
     
     # Create data loaders
     train_dataset = SkinLesionDataset(

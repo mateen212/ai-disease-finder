@@ -390,9 +390,13 @@ class SkinLesionCNN:
                     self.save(model_save_path, epoch=epoch, best_val_acc=best_val_acc)
                     logger.info(f"Best model saved with val_acc={val_acc:.2f}%")
                 
-                # Save checkpoint for resume
-                checkpoint_path = model_save_path.replace('.pth', '_checkpoint.pth')
-                self.save(checkpoint_path, epoch=epoch, best_val_acc=best_val_acc)
+                # Save checkpoint for resume (every epoch)
+                try:
+                    checkpoint_path = model_save_path.replace('.pth', '_checkpoint.pth')
+                    self.save(checkpoint_path, epoch=epoch, best_val_acc=best_val_acc)
+                    logger.info(f"✓ Checkpoint saved for epoch {epoch+1}")
+                except Exception as e:
+                    logger.error(f"Failed to save checkpoint: {e}")
             else:
                 logger.info(
                     f"Epoch {epoch+1}: Train Loss={epoch_train_loss:.4f}, "
@@ -507,6 +511,9 @@ class SkinLesionCNN:
     
     def load(self, filepath: str) -> Dict[str, Any]:
         """Load a trained model and return checkpoint info"""
+        if not Path(filepath).exists():
+            raise FileNotFoundError(f"Model file not found: {filepath}")
+            
         checkpoint = torch.load(filepath, map_location=self.device)
         
         self.model.load_state_dict(checkpoint['model_state_dict'])
@@ -514,11 +521,15 @@ class SkinLesionCNN:
         self.class_names = checkpoint.get('class_names')
         self.is_trained = True
         
+        epoch = checkpoint.get('epoch', 0)
+        best_val_acc = checkpoint.get('best_val_acc', 0.0)
+        
         logger.info(f"CNN model loaded from {filepath}")
+        logger.info(f"Loaded checkpoint: epoch={epoch}, best_val_acc={best_val_acc:.2f}%")
         
         return {
-            'epoch': checkpoint.get('epoch', 0),
-            'best_val_acc': checkpoint.get('best_val_acc', 0.0)
+            'epoch': epoch,
+            'best_val_acc': best_val_acc
         }
 
 

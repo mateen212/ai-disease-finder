@@ -284,6 +284,84 @@ class DataPreprocessor:
         
         return train_paths, test_paths, train_labels.tolist(), test_labels.tolist()
     
+    def prepare_folder_based_image_dataset(
+        self,
+        train_dir: str,
+        test_dir: str,
+        selected_classes: Optional[List[str]] = None
+    ) -> Tuple[List[str], List[str], List[int], List[int], List[str]]:
+        """
+        Prepare image dataset from folder structure where each folder is a class.
+        
+        Args:
+            train_dir: Directory containing training images in subfolders
+            test_dir: Directory containing test images in subfolders  
+            selected_classes: List of specific class folder names to include (None = all)
+        
+        Returns:
+            train_paths, test_paths, train_labels, test_labels, class_names
+        """
+        train_path = Path(train_dir)
+        test_path = Path(test_dir)
+        
+        # Get all class folders
+        all_class_folders = sorted([d.name for d in train_path.iterdir() if d.is_dir()])
+        
+        # Filter to selected classes if specified
+        if selected_classes:
+            class_folders = [f for f in all_class_folders if f in selected_classes]
+            logger.info(f"Selected {len(class_folders)} classes: {class_folders}")
+        else:
+            class_folders = all_class_folders
+            logger.info(f"Using all {len(class_folders)} classes")
+        
+        if not class_folders:
+            raise ValueError(f"No classes found! Selected: {selected_classes}, Available: {all_class_folders}")
+        
+        # Create label encoder mapping
+        class_to_label = {cls: idx for idx, cls in enumerate(class_folders)}
+        
+        # Collect training images
+        train_paths = []
+        train_labels = []
+        for class_name in class_folders:
+            class_dir = train_path / class_name
+            if not class_dir.exists():
+                logger.warning(f"Training folder not found: {class_dir}")
+                continue
+                
+            # Get all images in this class folder
+            image_files = list(class_dir.glob('*.jpg')) + list(class_dir.glob('*.png'))
+            
+            for img_path in image_files:
+                train_paths.append(str(img_path))
+                train_labels.append(class_to_label[class_name])
+            
+            logger.info(f"  {class_name}: {len(image_files)} training images")
+        
+        # Collect test images
+        test_paths = []
+        test_labels = []
+        for class_name in class_folders:
+            class_dir = test_path / class_name
+            if not class_dir.exists():
+                logger.warning(f"Test folder not found: {class_dir}")
+                continue
+                
+            # Get all images in this class folder
+            image_files = list(class_dir.glob('*.jpg')) + list(class_dir.glob('*.png'))
+            
+            for img_path in image_files:
+                test_paths.append(str(img_path))
+                test_labels.append(class_to_label[class_name])
+            
+            logger.info(f"  {class_name}: {len(image_files)} test images")
+        
+        logger.info(f"\nDataset prepared: {len(train_paths)} train, {len(test_paths)} test images")
+        logger.info(f"Classes: {class_folders}")
+        
+        return train_paths, test_paths, train_labels, test_labels, class_folders
+    
     def create_synthetic_clinical_data(
         self, 
         n_samples: int = 1000,
