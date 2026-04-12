@@ -49,9 +49,10 @@ def download_data(preprocessor):
     logger.info("  python download_datasets.py")
     logger.info("")
     logger.info("Or download manually from Kaggle:")
-    logger.info("  1. COVID-19: https://www.kaggle.com/meirnizri/covid19-dataset")
-    logger.info("  2. Dengue: https://www.kaggle.com/mdtuser/dengue-dataset")
-    logger.info("  3. Skin: https://www.kaggle.com/kmader/skin-cancer-mnist-ham10000")
+    logger.info("  1. Unified Skin Dataset: https://www.kaggle.com/datasets/mateenzahid/skin-diesease")
+    logger.info("     (Contains melanoma, eczema, psoriasis, acne, normal - ~819MB)")
+    logger.info("  2. COVID-19: https://www.kaggle.com/meirnizri/covid19-dataset")
+    logger.info("  3. Dengue: https://www.kaggle.com/mdtuser/dengue-dataset")
     logger.info("")
     
     # Check if data exists
@@ -152,27 +153,30 @@ def train_cnn(args):
     logger.info("TRAINING CNN FOR SKIN LESION CLASSIFICATION")
     logger.info("="*60)
     
-    # Define the 4 specific disease classes to train on
+    # Define the 5 specific disease classes to train on (including Normal/Healthy Skin)
     SELECTED_CLASSES = [
         "Melanoma Skin Cancer Nevi and Moles",
         "Eczema Photos",
         "Psoriasis pictures Lichen Planus and related diseases",
-        "Acne and Rosacea Photos"
+        "Acne and Rosacea Photos",
+        "Normal Healthy Skin"
     ]
     
     logger.info(f"Training on {len(SELECTED_CLASSES)} disease categories:")
     for i, cls in enumerate(SELECTED_CLASSES, 1):
         logger.info(f"  {i}. {cls}")
     
-    # Check if folder-based image data exists
-    train_dir = "data/skin_lesions/train"
-    test_dir = "data/skin_lesions/test"
+    # Check if raw dataset exists (unified Kaggle dataset structure)
+    raw_dir = "data/skin_lesions_raw"
     
-    if not Path(train_dir).exists() or not Path(test_dir).exists():
-        logger.warning("Skin lesion folder structure not found. Skipping CNN training.")
-        logger.info("To train CNN, ensure data is in folder structure:")
-        logger.info("  data/skin_lesions/train/<disease_name>/")
-        logger.info("  data/skin_lesions/test/<disease_name>/")
+    if not Path(raw_dir).exists():
+        logger.warning("Raw skin lesion data not found. Skipping CNN training.")
+        logger.info("To train CNN:")
+        logger.info("  1. Download unified dataset: https://www.kaggle.com/datasets/mateenzahid/skin-diesease")
+        logger.info("  2. Extract to: data/skin_lesions_raw/")
+        logger.info("Expected structure:")
+        logger.info("  data/skin_lesions_raw/<disease>/train/")
+        logger.info("  data/skin_lesions_raw/<disease>/val/ or test/")
         return None, None
     
     # Initialize
@@ -201,12 +205,8 @@ def train_cnn(args):
     else:
         logger.info(f"No checkpoint found at {checkpoint_path}. Starting fresh training.")
     
-    # Prepare dataset using folder structure with class filtering
-    train_paths, test_paths, train_labels, test_labels, class_names = preprocessor.prepare_folder_based_image_dataset(
-        train_dir,
-        test_dir,
-        selected_classes=SELECTED_CLASSES
-    )
+    # Prepare dataset from raw directory (uses existing train/val/test structure)
+    train_paths, val_paths, train_labels, val_labels, class_names = preprocessor.prepare_raw_skin_dataset(raw_dir)
     
     # Store class names in the model
     cnn_model.class_names = class_names
@@ -231,9 +231,9 @@ def train_cnn(args):
         transform=preprocessor.train_transform
     )
     
-    test_dataset = SkinLesionDataset(
-        test_paths,
-        test_labels,
+    val_dataset = SkinLesionDataset(
+        val_paths,
+        val_labels,
         transform=preprocessor.test_transform
     )
     
@@ -244,8 +244,8 @@ def train_cnn(args):
         num_workers=4
     )
     
-    test_loader = DataLoader(
-        test_dataset,
+    val_loader = DataLoader(
+        val_dataset,
         batch_size=cnn_model.batch_size,
         shuffle=False,
         num_workers=4
@@ -254,7 +254,7 @@ def train_cnn(args):
     # Train model
     history = cnn_model.train(
         train_loader,
-        test_loader,
+        val_loader,
         save_best=True,
         model_save_path="models/cnn_skin_lesion.pth",
         start_epoch=start_epoch,
@@ -262,8 +262,8 @@ def train_cnn(args):
     )
     
     # Evaluate
-    test_loss, test_acc = cnn_model.evaluate(test_loader)
-    logger.info(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_acc:.2f}%")
+    val_loss, val_acc = cnn_model.evaluate(val_loader)
+    logger.info(f"Validation Loss: {val_loss:.4f}, Validation Accuracy: {val_acc:.2f}%")
     
     # Save model
     cnn_model.save("models/cnn_skin_lesion_final.pth")

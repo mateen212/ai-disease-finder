@@ -1,8 +1,12 @@
 # Knowledge-Based System (KBS) Documentation Report
 
+[![Download PDF](https://img.shields.io/badge/Download-PDF-red.svg)](https://gitprint.com/kawkmin/vspython/blob/main/KBS_FINAL_DOCUMENTATION.md)
+[![View Online](https://img.shields.io/badge/View-Online-blue.svg)](https://github.com/kawkmin/vspython/blob/main/KBS_FINAL_DOCUMENTATION.md)
+[![Dataset](https://img.shields.io/badge/Dataset-Kaggle-20BEFF.svg)](https://www.kaggle.com/datasets/mateenzahid/skin-diesease)
+
 **System Name**: Hybrid Neuro-Symbolic Clinical Decision Support System  
-**Date**: April 12, 2026  
-**Version**: 1.0  
+**Date**: April 13, 2026  
+**Version**: 1.1  
 **Developer**: Medical AI Research Team
 
 ---
@@ -124,7 +128,7 @@
 
 #### Image Upload Specifications:
 - **Format**: JPEG, PNG, BMP
-- **Size**: Minimum 224x224 pixels (auto-resized)
+- **Size**: Automatically resized to 384×384 pixels (higher quality than standard 224×224)
 - **Color**: RGB (3 channels)
 - **File Size**: Maximum 10 MB
 - **Preprocessing**: Automatic normalization and augmentation
@@ -162,33 +166,46 @@
    - Disease-symptom associations for 41 diseases
    - 2,000+ labeled patient cases
 
-#### Skin Disease Datasets:
-1. **Melanoma Dataset**:
-   - `hasnainjaved/melanoma-skin-cancer-dataset-of-10000-images`
-   - 10,605 high-quality dermatoscopic images
-   - Size: 98.7 MB
+#### Skin Disease Dataset:
+**Unified Kaggle Dataset**: `mateenzahid/skin-diesease`
+- **Total Size**: ~819MB (compressed)
+- **Total Images**: ~24,000+ high-quality images
+- **Classes**: 5 disease categories + healthy skin
 
-2. **Eczema Dataset**:
-   - `adityush/eczema2`
+**Disease Distribution**:
+1. **Melanoma (Skin Cancer)**:
+   - 10,605 dermatoscopic images
+   - Includes melanoma, nevi, and moles
+   - No pre-split folders → Auto-split 80/20 for training
+
+2. **Eczema (Atopic Dermatitis)**:
    - 3,123 clinical images
-   - Size: 203 MB
+   - Various severity levels
+   - No pre-split folders → Auto-split 80/20 for training
 
-3. **Psoriasis Dataset**:
-   - `pallapurajkumar/psoriasis-skin-dataset`
-   - 2,806 images with various severities
-   - Size: 199 MB
+3. **Psoriasis**:
+   - 2,801 images with plaques and lesions
+   - Different body locations
+   - No pre-split folders → Auto-split 80/20 for training
 
-4. **Acne Dataset**:
-   - `tiswan14/acne-dataset-image`
-   - 4,617 images including rosacea
-   - Size: 122 MB
+4. **Acne (Including Rosacea)**:
+   - 4,617 images (2,778 train / 921 val / 918 test)
+   - Pre-organized train/val/test splits
+   - Uses existing folder structure
 
-5. **Normal Skin Dataset**:
-   - `shakyadissanayake/oily-dry-and-normal-skin-types-dataset`
-   - 3,152 healthy skin images
-   - Size: 124 MB
+5. **Normal/Healthy Skin**:
+   - 3,152 images of clear, healthy skin
+   - Prevents false positive diagnoses
+   - No pre-split folders → Auto-split 80/20 for training
 
-**Total Datasets**: 13 CSV files + 24,303 images (~1.2 GB)
+**Dataset Advantages**:
+- ✅ Single unified source (no multiple downloads)
+- ✅ Consistent image quality and format
+- ✅ Mixed folder structures handled automatically
+- ✅ All original data preserved in `data/skin_lesions_raw/`
+- ✅ Smart splitting: Uses existing splits when available, creates 80/20 when needed
+
+**Total Training Data**: ~18,500 training images + ~4,800 validation images
 
 ### B. Clinical Guidelines (WHO/CDC)
 
@@ -390,9 +407,9 @@ THEN Diagnosis = Pneumonia (Risk Level: Severe, Probability +0.4)
 
 **Network Structure**:
 ```
-Input: 224×224×3 RGB Image
+Input: 384×384×3 RGB Image (higher resolution for better detail)
 ↓
-EfficientNet-B0 Backbone (Pretrained)
+EfficientNet-B0 Backbone (Pretrained on ImageNet)
   - MBConv blocks with squeeze-and-excitation
   - Batch normalization
   - Swish activation
@@ -405,26 +422,30 @@ Fully Connected Layer (5 classes)
 ↓
 Softmax Activation
 ↓
-Output: Probability Distribution
+Output: Probability Distribution [Melanoma, Eczema, Psoriasis, Acne, Normal]
 ```
 
 #### Training Configuration:
+- **Hardware**: GPU prioritized (T4/V100/A100), TPU also supported
+- **Platform**: Google Colab with GPU acceleration
+- **Image Size**: 384×384 pixels (71% larger than standard 224×224)
 - **Optimizer**: Adam (lr=0.001)
 - **Loss Function**: Cross-Entropy Loss
-- **Batch Size**: 32
-- **Epochs**: 20 (with early stopping)
+- **Batch Size**: 16 (reduced from 32 due to larger images)
+- **Epochs**: 10-20 (with early stopping)
 - **Data Augmentation**:
   - Random horizontal flip (p=0.5)
   - Random rotation (±20°)
   - Color jitter (brightness, contrast, saturation ±0.2)
-  - Random zoom (±15%)
+  - ImageNet normalization (mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
 #### Training Results:
-- **Training Set**: 17,007 images
-- **Validation Set**: 2,433 images
-- **Test Set**: 4,863 images
-- **Training Platform**: Google Colab with GPU (TPU optional)
-- **Training Time**: ~15-20 minutes on GPU
+- **Training Set**: ~18,500 images (80% of dataset)
+- **Validation Set**: ~4,800 images (20% of dataset)
+- **Total Dataset**: ~24,000 images from unified Kaggle source
+- **Training Platform**: Google Colab with GPU (T4/V100 recommended), TPU v5e-1 also supported
+- **Training Time**: ~20-30 minutes on GPU (10 epochs with 384×384 images)
+- **Memory Requirements**: ~4-6GB GPU memory (batch size 16)
 
 #### Model Output:
 - 5-class probability distribution:
@@ -887,8 +908,9 @@ Pneumonia       █░░░░░░░░░░░░░░░░░  3.0%
 ### Scalability:
 - **Concurrent Users**: Tested up to 100
 - **Daily Capacity**: 10,000+ diagnoses
-- **Dataset Size**: 24,303 images + 2,000 clinical cases
+- **Dataset Size**: ~24,000 images + 2,000 clinical cases (~819MB unified dataset)
 - **Model Size**: 49.2 MB total (47MB CNN + 2.2MB RF)
+- **Image Resolution**: 384×384 pixels (better quality than standard 224×224)
 
 ---
 
@@ -923,22 +945,50 @@ Pneumonia       █░░░░░░░░░░░░░░░░░  3.0%
 3. Esteva et al. (2017). "Dermatologist-level classification of skin cancer with deep neural networks"
 4. Tan & Le (2019). "EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks"
 5. Lundberg & Lee (2017). "A Unified Approach to Interpreting Model Predictions (SHAP)"
+6. Kaggle Dataset: Zahid, M. (2024). "Skin Disease Dataset" - https://www.kaggle.com/datasets/mateenzahid/skin-diesease
 
 ---
 
 ## 📝 CONCLUSION
 
 This Knowledge-Based System represents a comprehensive hybrid approach to medical diagnosis, combining:
-- **Symbolic AI** (rule-based reasoning)
-- **Machine Learning** (Random Forest)
-- **Deep Learning** (CNN)
-- **Explainable AI** (SHAP)
+- **Symbolic AI** (rule-based reasoning with 7 forward-chaining rules)
+- **Machine Learning** (Random Forest with 200 trees, 99% accuracy)
+- **Deep Learning** (EfficientNet-B0 CNN with 384×384 image input)
+- **Explainable AI** (SHAP for interpretability)
+
+**Key Improvements in Version 1.1**:
+- ✅ Unified dataset (single download instead of 5)
+- ✅ Higher resolution images (384×384 vs 224×224)
+- ✅ GPU-optimized training (faster and more accessible)
+- ✅ Smart folder handling (auto-split + existing splits)
+- ✅ ~24,000 images across 5 disease classes
 
 The system achieves high accuracy while maintaining interpretability and clinical relevance, making it suitable for research, education, and future clinical validation studies.
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: April 12, 2026  
+## 📥 DOWNLOAD OPTIONS
+
+### View and Download:
+- **Online Viewing**: [GitHub Repository](https://github.com/kawkmin/vspython)
+- **PDF Download**: Click the "Download PDF" badge at the top of this document
+- **Alternative PDF**: Use browser Print to PDF function (Ctrl+P / Cmd+P)
+
+### Dataset Access:
+- **Kaggle Dataset**: [mateenzahid/skin-diesease](https://www.kaggle.com/datasets/mateenzahid/skin-diesease)
+- **Size**: ~819MB (unified, all 5 disease classes)
+- **License**: Check Kaggle dataset page for specific license terms
+
+### Training Notebook:
+- **Google Colab**: Upload `colab_train.ipynb` from repository
+- **Hardware**: GPU recommended (T4 free tier sufficient)
+- **Training Time**: 20-30 minutes for 10 epochs
+
+---
+
+**Document Version**: 1.1  
+**Last Updated**: April 13, 2026  
 **Status**: Production Ready  
-**License**: MIT (Educational Use)
+**License**: MIT (Educational Use)  
+**Dataset**: Unified Kaggle dataset (mateenzahid/skin-diesease)

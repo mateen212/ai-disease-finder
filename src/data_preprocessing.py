@@ -362,6 +362,98 @@ class DataPreprocessor:
         
         return train_paths, test_paths, train_labels, test_labels, class_folders
     
+    def prepare_raw_skin_dataset(
+        self,
+        raw_dir: str = "data/skin_lesions_raw"
+    ) -> Tuple[List[str], List[str], List[int], List[int], List[str]]:
+        """
+        Prepare image dataset from raw Kaggle structure where dataset is organized as:
+        raw_dir/<disease_short_name>/train/*.jpg
+        raw_dir/<disease_short_name>/val/*.jpg
+        raw_dir/<disease_short_name>/test/*.jpg
+        
+        Args:
+            raw_dir: Directory containing raw downloaded datasets
+        
+        Returns:
+            train_paths, val_paths, train_labels, val_labels, class_names
+        """
+        raw_path = Path(raw_dir)
+        
+        # Disease mapping from short folder names to full class names
+        disease_mapping = {
+            'melanoma': 'Melanoma Skin Cancer Nevi and Moles',
+            'eczema': 'Eczema Photos',
+            'psoriasis': 'Psoriasis pictures Lichen Planus and related diseases',
+            'acne': 'Acne and Rosacea Photos',
+            'normal': 'Normal Healthy Skin'
+        }
+        
+        class_names = list(disease_mapping.values())
+        class_to_label = {full_name: idx for idx, full_name in enumerate(class_names)}
+        
+        train_paths = []
+        train_labels = []
+        val_paths = []
+        val_labels = []
+        
+        logger.info(f"Loading images from raw dataset: {raw_dir}")
+        
+        for short_name, full_name in disease_mapping.items():
+            disease_dir = raw_path / short_name
+            
+            if not disease_dir.exists():
+                logger.warning(f"Skipping {short_name} - directory not found")
+                continue
+            
+            # Load training images
+            train_dir = disease_dir / 'train'
+            if train_dir.exists():
+                train_count = 0
+                for img_path in train_dir.rglob('*'):
+                    if img_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.bmp']:
+                        train_paths.append(str(img_path))
+                        train_labels.append(class_to_label[full_name])
+                        train_count += 1
+                logger.info(f"  {short_name}/train: {train_count} images")
+            
+            # Load validation images (check both 'val' and 'valid')
+            val_dir = disease_dir / 'val'
+            valid_dir = disease_dir / 'valid'
+            
+            if val_dir.exists():
+                val_count = 0
+                for img_path in val_dir.rglob('*'):
+                    if img_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.bmp']:
+                        val_paths.append(str(img_path))
+                        val_labels.append(class_to_label[full_name])
+                        val_count += 1
+                logger.info(f"  {short_name}/val: {val_count} images")
+            elif valid_dir.exists():
+                val_count = 0
+                for img_path in valid_dir.rglob('*'):
+                    if img_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.bmp']:
+                        val_paths.append(str(img_path))
+                        val_labels.append(class_to_label[full_name])
+                        val_count += 1
+                logger.info(f"  {short_name}/valid: {val_count} images")
+            else:
+                # If no val folder, use test folder for validation
+                test_dir = disease_dir / 'test'
+                if test_dir.exists():
+                    val_count = 0
+                    for img_path in test_dir.rglob('*'):
+                        if img_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.bmp']:
+                            val_paths.append(str(img_path))
+                            val_labels.append(class_to_label[full_name])
+                            val_count += 1
+                    logger.info(f"  {short_name}/test (used as val): {val_count} images")
+        
+        logger.info(f"\nRaw dataset prepared: {len(train_paths)} train, {len(val_paths)} val images")
+        logger.info(f"Classes: {class_names}")
+        
+        return train_paths, val_paths, train_labels, val_labels, class_names
+    
     def create_synthetic_clinical_data(
         self, 
         n_samples: int = 1000,

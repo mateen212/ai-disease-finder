@@ -6,8 +6,14 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-1.13+-red.svg)](https://pytorch.org/)
 [![Status](https://img.shields.io/badge/status-production%20ready-brightgreen.svg)]()
+[![Documentation](https://img.shields.io/badge/docs-complete-success.svg)](./KBS_FINAL_DOCUMENTATION.md)
+[![Download PDF](https://img.shields.io/badge/Download-PDF-red.svg)](https://gitprint.com/kawkmin/vspython/blob/main/KBS_FINAL_DOCUMENTATION.md)
 
 A comprehensive medical diagnosis system combining **symbolic reasoning**, **machine learning**, and **deep learning** for intelligent disease detection with explainable AI.
+
+### 📄 Full Documentation
+**[→ View Complete KBS Documentation (KBS_FINAL_DOCUMENTATION.md)](./KBS_FINAL_DOCUMENTATION.md)**  
+**[→ Download PDF Version](https://gitprint.com/kawkmin/vspython/blob/main/KBS_FINAL_DOCUMENTATION.md)** | **[→ PDF Generation Guide](./docs/PDF_GENERATION_GUIDE.md)**
 
 ---
 
@@ -19,6 +25,8 @@ A comprehensive medical diagnosis system combining **symbolic reasoning**, **mac
 > 3. Knowledge Base Specification
 > 4. Methods Used
 > 5. System Output/Decision
+>
+> **For complete detailed documentation, see [KBS_FINAL_DOCUMENTATION.md](./KBS_FINAL_DOCUMENTATION.md)**
 
 ---
 
@@ -32,11 +40,12 @@ A comprehensive medical diagnosis system combining **symbolic reasoning**, **mac
 #### Skin Diseases (Image-Based Diagnosis):
 - **Melanoma** - Most dangerous skin cancer (10,605 training images)
 - **Eczema** - Chronic inflammatory skin condition (3,123 images)
-- **Psoriasis** - Autoimmune skin disorder (2,806 images)
+- **Psoriasis** - Autoimmune skin disorder (2,801 images)
 - **Acne** - Common inflammatory condition (4,617 images)
 - **Normal/Healthy Skin** - Baseline for preventing false positives (3,152 images)
 
-**Total Coverage**: 8 conditions | 24,303 images + 2,000 clinical cases
+**Total Coverage**: 8 conditions | ~24,000 images + 2,000 clinical cases  
+**Dataset**: Unified Kaggle dataset ([mateenzahid/skin-diesease](https://www.kaggle.com/datasets/mateenzahid/skin-diesease), ~819MB)
 
 **Rationale**: Global health impact + Early detection critical + Data availability + Diagnostic complexity
 

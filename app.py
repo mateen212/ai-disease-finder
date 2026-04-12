@@ -72,8 +72,8 @@ class ClinicalDiagnosisApp:
             except Exception as e:
                 logger.warning(f"Could not load RF model: {e}")
         
-        # Load CNN
-        cnn_path = "models/cnn_skin_lesion_without_normal.pth"
+        # Load CNN (5-class model with Normal/Healthy Skin)
+        cnn_path = "models/cnn_skin_lesion.pth"
         if Path(cnn_path).exists():
             try:
                 self.cnn_model.load(cnn_path)
@@ -411,8 +411,10 @@ def create_interface():
                 - **Eczema**: Atopic dermatitis and related conditions
                 - **Psoriasis**: Including lichen planus and related diseases
                 - **Acne**: Including rosacea and acne vulgaris
+                - **Normal/Healthy Skin**: Detects healthy skin to avoid false positives
                 
-                Trained on 3,943 training images across 4 disease categories.
+                Model: EfficientNet-B0 trained on 5 disease categories including normal skin.
+                Dataset: ~819MB unified skin disease dataset with balanced classes.
                 """)
                 
                 with gr.Row():
@@ -454,9 +456,10 @@ def create_interface():
                 
                 3. **Convolutional Neural Network** (20% weight)
                    - EfficientNet-B0 architecture
-                   - Trained on 10,015 dermoscopic images
+                   - Trained on unified skin disease dataset (~819MB)
+                   - 5 classes: Melanoma, Eczema, Psoriasis, Acne, Normal/Healthy Skin
                    - Transfer learning from ImageNet
-                   - 85%+ accuracy on skin lesions
+                   - Trained on TPU v5e-1 / GPU for optimal performance
                 
                 ### 📊 Fusion Strategy
                 
@@ -472,8 +475,8 @@ def create_interface():
                 ### 🔧 Technical Details
                 
                 - **Framework**: PyTorch, scikit-learn, Gradio
-                - **Dataset**: HAM10000, synthetic clinical data
-                - **Models**: Trained with cross-validation
+                - **Dataset**: Unified Kaggle skin disease dataset (mateenzahid/skin-diesease)
+                - **Models**: Trained with cross-validation and TPU/GPU acceleration
                 - **Last Updated**: April 2026
                 """)
         
