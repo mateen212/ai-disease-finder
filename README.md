@@ -2,18 +2,12 @@
 
 ## Knowledge-Based System (KBS) for Multi-Disease Diagnosis
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-1.13+-red.svg)](https://pytorch.org/)
-[![Status](https://img.shields.io/badge/status-production%20ready-brightgreen.svg)]()
-[![Documentation](https://img.shields.io/badge/docs-complete-success.svg)](./KBS_FINAL_DOCUMENTATION.md)
-[![Download PDF](https://img.shields.io/badge/Download-PDF-red.svg)](https://gitprint.com/kawkmin/vspython/blob/main/KBS_FINAL_DOCUMENTATION.md)
+
 
 A comprehensive medical diagnosis system combining **symbolic reasoning**, **machine learning**, and **deep learning** for intelligent disease detection with explainable AI.
 
 ### 📄 Full Documentation
 **[→ View Complete KBS Documentation (KBS_FINAL_DOCUMENTATION.md)](./KBS_FINAL_DOCUMENTATION.md)**  
-**[→ Download PDF Version](https://gitprint.com/kawkmin/vspython/blob/main/KBS_FINAL_DOCUMENTATION.md)** | **[→ PDF Generation Guide](./docs/PDF_GENERATION_GUIDE.md)**
 
 ---
 
