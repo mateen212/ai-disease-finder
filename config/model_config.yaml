@@ -14,7 +14,7 @@ random_forest:
 cnn:
   architecture: "efficientnet_b0"  # Options: resnet50, efficientnet_b0, mobilenet_v2
   pretrained: true
-  num_classes: 4  # Skin diseases: melanoma, eczema, psoriasis, acne
+  num_classes: 5  # Skin diseases: melanoma, eczema, psoriasis, acne, normal/healthy
   input_size: 224
   batch_size: 32
   learning_rate: 0.001

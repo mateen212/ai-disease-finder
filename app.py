@@ -40,12 +40,13 @@ class ClinicalDiagnosisApp:
         logger.info("Initializing Clinical Diagnosis System...")
         
         # Skin lesion class names (define BEFORE loading models)
-        # Updated to match new 4-disease training dataset
+        # Updated to match new 5-class training dataset (including healthy skin)
         self.skin_classes = [
             'Melanoma Skin Cancer Nevi and Moles',
             'Eczema Photos',
             'Psoriasis pictures Lichen Planus and related diseases',
-            'Acne and Rosacea Photos'
+            'Acne and Rosacea Photos',
+            'Normal Healthy Skin'
         ]
         
         # Initialize components
@@ -72,7 +73,7 @@ class ClinicalDiagnosisApp:
                 logger.warning(f"Could not load RF model: {e}")
         
         # Load CNN
-        cnn_path = "models/cnn_skin_lesion.pth"
+        cnn_path = "models/cnn_skin_lesion_without_normal.pth"
         if Path(cnn_path).exists():
             try:
                 self.cnn_model.load(cnn_path)

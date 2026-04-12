@@ -165,11 +165,12 @@ class DataDownloader:
             'dengue_bangladesh': ('kawsarahmad/dengue-dataset-bangladesh', 'dengue'),
             'dengue_philippines': ('vincentgupo/dengue-cases-in-the-philippines', 'dengue'),
             
-            # Skin Disease Datasets (4 main categories)
+            # Skin Disease Datasets (5 main categories including normal skin)
             'melanoma': ('hasnainjaved/melanoma-skin-cancer-dataset-of-10000-images', 'skin_lesions_raw/melanoma'),
             'eczema': ('adityush/eczema2', 'skin_lesions_raw/eczema'),
             'psoriasis': ('pallapurajkumar/psoriasis-skin-dataset', 'skin_lesions_raw/psoriasis'),
             'acne': ('tiswan14/acne-dataset-image', 'skin_lesions_raw/acne'),
+            'normal_skin': ('shakyadissanayake/oily-dry-and-normal-skin-types-dataset', 'skin_lesions_raw/normal'),
             
             # Pneumonia Dataset (IMPORTANT - Keep separate for RF model)
             'pneumonia_xray': ('paultimothymooney/chest-xray-pneumonia', 'pneumonia_xray'),
@@ -539,7 +540,8 @@ Compiled for: Hybrid Neuro-Symbolic Clinical Decision Support System
             'melanoma': 'Melanoma Skin Cancer Nevi and Moles',
             'eczema': 'Eczema Photos',
             'psoriasis': 'Psoriasis pictures Lichen Planus and related diseases',
-            'acne': 'Acne and Rosacea Photos'
+            'acne': 'Acne and Rosacea Photos',
+            'normal': 'Normal Healthy Skin'
         }
         
         for short_name, full_name in disease_mapping.items():
