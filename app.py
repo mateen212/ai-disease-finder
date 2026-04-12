@@ -40,10 +40,12 @@ class ClinicalDiagnosisApp:
         logger.info("Initializing Clinical Diagnosis System...")
         
         # Skin lesion class names (define BEFORE loading models)
+        # Updated to match new 4-disease training dataset
         self.skin_classes = [
-            'Melanoma', 'Melanocytic Nevus', 'Basal Cell Carcinoma',
-            'Actinic Keratosis', 'Benign Keratosis',
-            'Dermatofibroma', 'Vascular Lesion'
+            'Melanoma Skin Cancer Nevi and Moles',
+            'Eczema Photos',
+            'Psoriasis pictures Lichen Planus and related diseases',
+            'Acne and Rosacea Photos'
         ]
         
         # Initialize components
@@ -404,13 +406,12 @@ def create_interface():
                 ### Upload a dermoscopic image for skin lesion analysis
                 
                 The CNN model can identify:
-                - Melanoma
-                - Melanocytic Nevus
-                - Basal Cell Carcinoma
-                - Actinic Keratosis
-                - Benign Keratosis
-                - Dermatofibroma
-                - Vascular Lesion
+                - **Melanoma**: Skin cancer, moles, and nevi
+                - **Eczema**: Atopic dermatitis and related conditions
+                - **Psoriasis**: Including lichen planus and related diseases
+                - **Acne**: Including rosacea and acne vulgaris
+                
+                Trained on 3,943 training images across 4 disease categories.
                 """)
                 
                 with gr.Row():

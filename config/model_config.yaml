@@ -14,7 +14,7 @@ random_forest:
 cnn:
   architecture: "efficientnet_b0"  # Options: resnet50, efficientnet_b0, mobilenet_v2
   pretrained: true
-  num_classes: 7  # HAM10000: melanoma, nevus, basal_cell_carcinoma, actinic_keratosis, benign_keratosis, dermatofibroma, vascular_lesion
+  num_classes: 4  # Skin diseases: melanoma, eczema, psoriasis, acne
   input_size: 224
   batch_size: 32
   learning_rate: 0.001

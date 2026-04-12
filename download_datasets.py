@@ -165,9 +165,18 @@ class DataDownloader:
             'dengue_bangladesh': ('kawsarahmad/dengue-dataset-bangladesh', 'dengue'),
             'dengue_philippines': ('vincentgupo/dengue-cases-in-the-philippines', 'dengue'),
             
-            # Skin lesion datasets
-            'skin_cancer_ham10000': ('kmader/skin-cancer-mnist-ham10000', 'skin_lesions'),
-            'dermatology_images': ('shubhamgoel27/dermnet', 'skin_lesions'),
+            # Skin Disease Datasets (4 main categories)
+            'melanoma': ('hasnainjaved/melanoma-skin-cancer-dataset-of-10000-images', 'skin_lesions_raw/melanoma'),
+            'eczema': ('adityush/eczema2', 'skin_lesions_raw/eczema'),
+            'psoriasis': ('pallapurajkumar/psoriasis-skin-dataset', 'skin_lesions_raw/psoriasis'),
+            'acne': ('tiswan14/acne-dataset-image', 'skin_lesions_raw/acne'),
+            
+            # Pneumonia Dataset (IMPORTANT - Keep separate for RF model)
+            'pneumonia_xray': ('paultimothymooney/chest-xray-pneumonia', 'pneumonia_xray'),
+            
+            # Additional skin datasets (optional, for augmentation)
+            'skin_cancer_ham10000': ('kmader/skin-cancer-mnist-ham10000', 'skin_lesions_raw/ham10000'),
+            'dermatology_images': ('shubhamgoel27/dermnet', 'skin_lesions_raw/dermnet'),
             
             # General clinical data
             'general_symptoms': ('itachi9604/disease-symptom-description-dataset', 'clinical'),
@@ -230,182 +239,465 @@ class DataDownloader:
         guidelines_dir = self.base_dir / 'guidelines'
         guidelines_dir.mkdir(exist_ok=True)
         
-        # Create guideline references document
+        # Clinical guideline URLs (Note: Some may require manual download)
+        guidelines_to_download = {
+            'melanoma_cdc.html': 'https://stacks.cdc.gov/view/cdc/30592',
+            'eczema_who.html': 'https://www.emro.who.int/emhj-volume-31-2025/volume-31-issue-9/adolopment-of-atopic-dermatitis-management-guidelines-for-pakistan.html',
+            'who_skin.pdf': 'https://extranet.who.int/ncdccs/Data/ZAF_D1aia_STG%20and%20EML%20PHC%202018.pdf',
+            'psoriasis_cdc.html': 'https://archive.cdc.gov/www_cdc_gov/psoriasis/index.htm',
+            'who_psoriasis.pdf': 'https://extranet.who.int/ncdccs/Data/ZAF_D1bia_s21_Primary%20Healthcare%20STGs%20and%20EML%207th%20edition%20-%202020-v2.0.pdf',
+            'pneumonia_ncbi.html': 'https://www.ncbi.nlm.nih.gov/books/NBK264162/',
+            'cdc_pneumonia.html': 'https://www.cdc.gov/pneumonia/hcp/management-prevention-guidelines/index.html',
+        }
+        
+        # Try to download each guideline
+        success_count = 0
+        for filename, url in guidelines_to_download.items():
+            try:
+                logger.info(f"Downloading: {filename}")
+                success = self.download_file(url, f'guidelines/{filename}', filename)
+                if success:
+                    success_count += 1
+            except Exception as e:
+                logger.warning(f"Could not download {filename}: {e}")
+                logger.info(f"Manual download may be required: {url}")
+        
+        # Create comprehensive guideline text file
         guidelines_text = """
 # Clinical Guidelines and Thresholds
 
-## Dengue Fever (WHO Guidelines)
+## Melanoma (CDC & Clinical Guidelines)
 
-### Diagnostic Criteria
-- Fever (typically 38.5-40°C lasting 2-7 days)
-- At least 2 of the following:
-  * Severe headache
-  * Retro-orbital pain
-  * Myalgia and arthralgia
-  * Rash
-  * Hemorrhagic manifestations
-  * Leukopenia
+### Risk Factors
+- Excessive UV exposure (sun/tanning beds)
+- Fair skin, light hair, light eyes
+- History of sunburns, especially in childhood
+- Family history of melanoma
+- Multiple or atypical moles (dysplastic nevi)
+- Weakened immune system
 
-### Laboratory Findings
-- Thrombocytopenia (platelet count ≤ 100,000/mm³)
-- Hemoconcentration (hematocrit increase ≥ 20%)
-- Leukopenia (WBC < 5,000/mm³)
+### ABCDE Warning Signs
+- **A**symmetry: One half doesn't match the other
+- **B**order irregularity: Edges are ragged, notched, or blurred
+- **C**olor: Multiple colors or uneven distribution
+- **D**iameter: Greater than 6mm (size of pencil eraser)
+- **E**volving: Changes in size, shape, color, or elevation
 
-### Warning Signs (Severe Dengue)
-- Abdominal pain or tenderness
-- Persistent vomiting
-- Clinical fluid accumulation
-- Mucosal bleeding
-- Lethargy, restlessness
-- Liver enlargement > 2 cm
-- Platelet count < 50,000/mm³
-- Hematocrit increase concurrent with rapid platelet decrease
+### Diagnosis
+- Visual skin examination
+- Dermoscopy
+- Biopsy (excisional or punch)
+- Histopathology (gold standard)
 
-Reference: WHO Dengue Guidelines (2009, updated 2012)
-Source: https://www.who.int/publications/i/item/9789241547871
+Reference: CDC Melanoma Guidelines
+Source: https://stacks.cdc.gov/view/cdc/30592
 
 ---
 
-## COVID-19 (CDC Guidelines)
+## Eczema (Atopic Dermatitis) - WHO Guidelines
 
-### Common Symptoms
-- Fever or chills (temperature ≥ 38°C)
-- Cough (dry or productive)
-- Shortness of breath or difficulty breathing
-- Fatigue
-- Muscle or body aches
-- New loss of taste or smell
-- Sore throat
-- Congestion or runny nose
-- Nausea or vomiting
-- Diarrhea
+### Diagnostic Criteria (Must have)
+- Pruritus (itching)
+- Typical morphology and distribution:
+  * Flexural involvement in adults
+  * Facial and extensor involvement in infants/children
 
-### Severe Indicators
-- Oxygen saturation < 94%
-- Respiratory rate > 30/min
-- PaO2/FiO2 < 300 mmHg
-- Lung infiltrates > 50% increase within 24-48 hours
+### Major Features (3+ required)
+- Personal or family history of atopy (asthma, allergic rhinitis)
+- Chronic or chronically relapsing dermatitis
+- Onset before age 2 (for childhood onset)
 
-### Laboratory Findings
-- Lymphopenia (lymphocyte count < 1,000/μL)
-- Elevated inflammatory markers (CRP, D-dimer, ferritin)
-- Elevated liver enzymes
+### Clinical Features
+- Dry skin (xerosis)
+- Lichenification in adults
+- Red, inflamed patches
+- Crusting and oozing (acute phase)
+- Affected areas: hands, feet, neck, eyelids, flexural areas
 
-Reference: CDC COVID-19 Clinical Care Guidelines (2020-2024)
-Source: https://www.cdc.gov/coronavirus/2019-ncov/hcp/clinical-guidance-management-patients.html
+### Severity Assessment
+- **Mild**: Localized areas, minimal impact on daily life
+- **Moderate**: Widespread involvement, moderate impact
+- **Severe**: Extensive involvement, significant impact on QoL
+
+### Management
+- Emollients (daily, multiple times)
+- Topical corticosteroids (first-line anti-inflammatory)
+- Avoid triggers (allergens, irritants)
+- Systemic therapy for severe cases
+
+Reference: WHO Guidelines for Atopic Dermatitis
+Source: https://www.emro.who.int/emhj-volume-31-2025/volume-31-issue-9/
 
 ---
 
-## Pneumonia (Clinical Guidelines)
+## Psoriasis (CDC & Clinical Guidelines)
+
+### Clinical Features
+- Well-demarcated, erythematous plaques
+- Silvery-white scales
+- Symmetric distribution
+- Common sites: elbows, knees, scalp, lower back
+
+### Classification by Severity
+- **Mild**: <3% body surface area (BSA)
+- **Moderate**: 3-10% BSA
+- **Severe**: >10% BSA or involving critical areas (hands, feet, face, genitals)
+
+### Psoriasis Types
+1. **Plaque psoriasis** (80-90%): thick red patches with silvery scales
+2. **Guttate psoriasis**: small, drop-shaped lesions
+3. **Inverse psoriasis**: smooth red patches in skin folds
+4. **Pustular psoriasis**: white pustules surrounded by red skin
+5. **Erythrodermic psoriasis**: widespread redness and shedding
+
+### Triggers
+- Stress
+- Infections (especially streptococcal)
+- Medications (beta-blockers, lithium, antimalarials)
+- Skin injury (Koebner phenomenon)
+- Alcohol and smoking
+
+### Management
+- **Topical**: Corticosteroids, vitamin D analogues, retinoids
+- **Phototherapy**: UVB, PUVA
+- **Systemic**: Methotrexate, cyclosporine, biologics
+
+Reference: CDC Psoriasis Information
+Source: https://archive.cdc.gov/www_cdc_gov/psoriasis/index.htm
+
+---
+
+## Acne Vulgaris (Clinical Guidelines)
+
+### Pathophysiology
+1. Excess sebum production
+2. Follicular hyperkeratinization
+3. Cutibacterium acnes (C. acnes) colonization
+4. Inflammation
+
+### Clinical Presentation
+- **Comedonal**: Blackheads (open comedones), whiteheads (closed comedones)
+- **Inflammatory**: Papules, pustules
+- **Severe**: Nodules, cysts, scarring
+
+### Severity Classification
+- **Mild**: Few to several papules/pustules, no nodules
+- **Moderate**: Several to many papules/pustules, few to several nodules
+- **Severe**: Numerous or extensive nodules/cysts, scarring
+
+### Risk Factors
+- Adolescence (hormonal changes)
+- Family history
+- Certain medications (corticosteroids, androgens, lithium)
+- Cosmetics and hair products
+- High glycemic diet, dairy (controversial)
+
+### Treatment Approach
+- **Mild**: Topical retinoids + benzoyl peroxide
+- **Moderate**: Add topical or oral antibiotics
+- **Severe**: Oral isotretinoin (Accutane)
+- **Hormonal**: Oral contraceptives, spironolactone (females)
+
+---
+
+## Pneumonia (CDC & NCBI Guidelines)
 
 ### Diagnostic Criteria
-- Cough (productive or non-productive)
-- Fever (temperature ≥ 38°C)
-- Dyspnea or tachypnea
-- Crackles or bronchial breath sounds on auscultation
+- Acute illness with cough
+- At least one of:
+  * New focal chest signs on examination
+  * At least one systemic feature (fever ≥38°C, sweats, shivers, aches)
+- No other explanation for illness
+
+### Clinical Classification
+1. **Community-Acquired Pneumonia (CAP)**
+   - Acquired outside hospital/healthcare facility
+   - Most common bacterial cause: Streptococcus pneumoniae
+
+2. **Hospital-Acquired Pneumonia (HAP)**
+   - Onset ≥48 hours after hospital admission
+   - Higher mortality, resistant organisms
+
+3. **Ventilator-Associated Pneumonia (VAP)**
+   - Onset ≥48 hours after endotracheal intubation
 
 ### Severity Assessment (CURB-65)
-- Confusion
-- Urea > 7 mmol/L (BUN > 19 mg/dL)
-- Respiratory rate ≥ 30/min
-- Blood pressure (systolic < 90 or diastolic ≤ 60 mmHg)
-- Age ≥ 65 years
+Score 1 point for each:
+- **C**onfusion
+- **U**rea >7 mmol/L (BUN >19 mg/dL)
+- **R**espiratory rate ≥30/min
+- **B**lood pressure: Systolic <90 or Diastolic ≤60 mmHg
+- Age **65** years or older
 
-Score ≥ 3: Consider hospital admission
+Score 0-1: Low risk (outpatient)
+Score 2: Moderate risk (consider hospitalization)
+Score 3-5: High risk (hospitalization, consider ICU)
 
 ### Laboratory Findings
-- Leukocytosis (WBC > 11,000/mm³) or leukopenia (< 4,000/mm³)
-- Oxygen saturation < 92%
-- Chest X-ray: infiltrates (lobar, interstitial, or diffuse)
+- Leukocytosis (WBC >11,000/μL) or leukopenia (<4,000/μL)
+- Elevated inflammatory markers (CRP, procalcitonin)
+- Chest X-ray: infiltrate, consolidation, effusion
+- Hypoxemia: SpO2 <95%, PaO2 <60 mmHg
 
-Reference: ATS/IDSA Pneumonia Guidelines (2019)
-Source: https://www.thoracic.org/statements/
+### Management
+- **CAP Outpatient**: Amoxicillin or doxycycline
+- **CAP Inpatient**: Fluoroquinolone or beta-lactam + macrolide
+- **Severe CAP**: ICU, broad-spectrum antibiotics
+- **Supportive**: Oxygen, fluids, respiratory support
 
----
-
-## Skin Lesion Classification
-
-### Melanoma (ABCDE Criteria)
-- A: Asymmetry
-- B: Border irregularity
-- C: Color variation
-- D: Diameter > 6mm
-- E: Evolution (changing over time)
-
-### Dermoscopy Features
-- Melanoma: Atypical pigment network, blue-white veil, irregular dots/globules
-- Benign Nevi: Regular network, uniform color
-- Basal Cell Carcinoma: Arborizing vessels, leaf-like areas
-- Seborrheic Keratosis: Comedo-like openings, milia-like cysts
-
-Reference: Skin Cancer Foundation Guidelines (2023)
-Source: https://www.skincancer.org/
+Reference: CDC Pneumonia Guidelines, NCBI Clinical Guidelines
+Sources: 
+- https://www.cdc.gov/pneumonia/hcp/management-prevention-guidelines/
+- https://www.ncbi.nlm.nih.gov/books/NBK264162/
 
 ---
 
-## Laboratory Reference Ranges
+## General Diagnostic Thresholds
 
-### Complete Blood Count
-- WBC: 4,000-11,000/mm³
-- Platelets: 150,000-450,000/mm³
-- Hemoglobin: 13.5-17.5 g/dL (M), 12.0-15.5 g/dL (F)
-- Hematocrit: 38.3-48.6% (M), 35.5-44.9% (F)
+### Vital Signs (Adult Normal Ranges)
+- **Temperature**: 36.5-37.5°C (97.7-99.5°F)
+- **Heart Rate**: 60-100 bpm
+- **Respiratory Rate**: 12-20 breaths/min
+- **Blood Pressure**: <120/80 mmHg (normal), 120-139/80-89 (prehypertension)
+- **Oxygen Saturation**: ≥95%
 
-### Differential Count
-- Neutrophils: 40-70%
-- Lymphocytes: 20-40%
-- Monocytes: 2-8%
-- Eosinophils: 1-4%
-- Basophils: 0.5-1%
-
-### Vital Signs (Adult Reference)
-- Temperature: 36.5-37.5°C (97.7-99.5°F)
-- Heart Rate: 60-100 bpm
-- Respiratory Rate: 12-20/min
-- Blood Pressure: 90-120/60-80 mmHg
-- Oxygen Saturation: ≥ 95%
+### Common Laboratory Values
+- **WBC**: 4,000-11,000 cells/μL
+- **Platelets**: 150,000-400,000/μL
+- **Hemoglobin**: 12-16 g/dL (female), 14-18 g/dL (male)
+- **CRP**: <10 mg/L (normal), >10 mg/L (inflammation)
+- **Ferritin**: 12-300 ng/mL (male), 12-150 ng/mL (female)
 
 ---
 
-## Risk Stratification Thresholds
+## Important Notes
 
-### Low Risk
-- Mild symptoms
-- Normal vital signs
-- No comorbidities
-- Outpatient management
+### Disclaimer
+These guidelines are for educational and reference purposes only.
+They should not replace:
+- Professional medical judgment
+- Current local treatment protocols
+- Individual patient assessment
+- Updated clinical guidelines
 
-### Moderate Risk
-- Moderate symptoms
-- Mild vital sign abnormalities
-- Some risk factors present
-- Close outpatient monitoring or observation
+### Regular Updates
+Clinical guidelines are regularly updated by:
+- WHO (World Health Organization)
+- CDC (Centers for Disease Control and Prevention)
+- Medical specialty societies
+- National health authorities
 
-### High Risk
-- Severe symptoms
-- Abnormal vital signs (but stable)
-- Multiple risk factors
-- Consider hospitalization
+Always consult the latest official guidelines for clinical decision-making.
 
-### Severe/Critical
-- Respiratory distress or failure
-- Hemodynamic instability
-- Organ dysfunction
-- ICU admission required
+### AI/ML Limitations
+Machine learning models trained on these criteria:
+- Are decision support tools, not replacements for clinicians
+- Require validation on diverse populations
+- Should be used alongside clinical expertise
+- May not capture rare presentations or complex cases
 
 ---
 
 Last Updated: April 2026
-Compiled from WHO, CDC, ATS/IDSA, and international clinical guidelines
-"""
+Compiled for: Hybrid Neuro-Symbolic Clinical Decision Support System
+        """
         
         guidelines_file = guidelines_dir / 'clinical_guidelines.md'
         with open(guidelines_file, 'w') as f:
             f.write(guidelines_text)
         
-        logger.info(f"✓ Clinical guidelines saved to {guidelines_file}")
+        logger.info(f"✓ Comprehensive clinical guidelines saved to {guidelines_file}")
+        logger.info(f"✓ Successfully processed {success_count}/{len(guidelines_to_download)} guideline downloads")
         
         return True
+    
+    def normalize_skin_datasets(self) -> bool:
+        """
+        Normalize downloaded skin disease datasets into unified structure:
+        data/skin_lesions/train/<disease>/
+        data/skin_lesions/test/<disease>/
+        data/skin_lesions/val/<disease>/
+        
+        Automatically detects existing splits or creates them.
+        """
+        logger.info("\n" + "="*60)
+        logger.info("Normalizing Skin Disease Datasets")
+        logger.info("="*60)
+        
+        raw_dir = self.base_dir / 'skin_lesions_raw'
+        output_dir = self.base_dir / 'skin_lesions'
+        
+        if not raw_dir.exists():
+            logger.warning(f"Raw directory not found: {raw_dir}")
+            return False
+        
+        # Create output structure
+        for split in ['train', 'test', 'val']:
+            (output_dir / split).mkdir(parents=True, exist_ok=True)
+        
+        disease_mapping = {
+            'melanoma': 'Melanoma Skin Cancer Nevi and Moles',
+            'eczema': 'Eczema Photos',
+            'psoriasis': 'Psoriasis pictures Lichen Planus and related diseases',
+            'acne': 'Acne and Rosacea Photos'
+        }
+        
+        for short_name, full_name in disease_mapping.items():
+            disease_dir = raw_dir / short_name
+            
+            if not disease_dir.exists():
+                logger.warning(f"Disease directory not found: {disease_dir}")
+                continue
+            
+            logger.info(f"\nProcessing: {short_name} -> {full_name}")
+            
+            # Detect structure and normalize
+            self._normalize_disease_folder(
+                disease_dir, 
+                output_dir,
+                full_name
+            )
+        
+        logger.info("\n✓ Dataset normalization complete!")
+        logger.info(f"Normalized datasets structure:")
+        logger.info(f"  data/skin_lesions/")
+        logger.info(f"    ├── train/")
+        logger.info(f"    ├── test/")
+        logger.info(f"    └── val/")
+        
+        return True
+    
+    def _normalize_disease_folder(
+        self, 
+        source_dir: Path, 
+        output_dir: Path,
+        disease_name: str
+    ):
+        """
+        Normalize a single disease folder structure.
+        
+        Handles various input structures:
+        1. train/test/val folders already exist
+        2. train/test exist (create val from train)
+        3. Single folder with all images (create splits)
+        4. Nested folders (flatten)
+        """
+        import random
+        from sklearn.model_selection import train_test_split
+        
+        # Collect all image files recursively
+        image_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tif', '.tiff'}
+        all_images = []
+        
+        for ext in image_extensions:
+            all_images.extend(source_dir.rglob(f'*{ext}'))
+            all_images.extend(source_dir.rglob(f'*{ext.upper()}'))
+        
+        if not all_images:
+            logger.warning(f"No images found in {source_dir}")
+            return
+        
+        logger.info(f"  Found {len(all_images)} images")
+        
+        # Detect if train/test/val split already exists
+        has_train = (source_dir / 'train').exists() or (source_dir / 'Train').exists()
+        has_test = (source_dir / 'test').exists() or (source_dir / 'Test').exists()
+        has_val = (source_dir / 'val').exists() or (source_dir / 'validation').exists()
+        
+        if has_train and has_test:
+            logger.info("  Detected existing train/test split")
+            # Copy existing splits
+            self._copy_split_images(source_dir, output_dir, disease_name, 'train')
+            self._copy_split_images(source_dir, output_dir, disease_name, 'test')
+            
+            if has_val:
+                self._copy_split_images(source_dir, output_dir, disease_name, 'val')
+            else:
+                # Create val from train (10%)
+                logger.info("  Creating validation split from training data (10%)")
+                self._split_and_copy(source_dir / 'train', output_dir, disease_name, val_from_train=True)
+        else:
+            logger.info("  No existing split detected - creating train/val/test split (70/10/20)")
+            # Create splits: 70% train, 10% val, 20% test
+            all_images = list(all_images)
+            random.seed(42)
+            random.shuffle(all_images)
+            
+            # Split
+            train_val, test = train_test_split(all_images, test_size=0.2, random_state=42)
+            train, val = train_test_split(train_val, test_size=0.125, random_state=42)  #0.125 * 0.8 = 0.1
+            
+            # Copy to output directories
+            for split_name, split_images in [('train', train), ('val', val), ('test', test)]:
+                target_dir = output_dir / split_name / disease_name
+                target_dir.mkdir(parents=True, exist_ok=True)
+                
+                for img_path in split_images:
+                    dest_path = target_dir / img_path.name
+                    shutil.copy2(img_path, dest_path)
+                
+                logger.info(f"    {split_name}: {len(split_images)} images -> {target_dir}")
+    
+    def _copy_split_images(self, source_dir: Path, output_dir: Path, disease_name: str, split: str):
+        """Copy images from existing split structure"""
+        # Try different naming conventions
+        split_variations = [split, split.capitalize(), split.upper()]
+        source_split = None
+        
+        for variant in split_variations:
+            if (source_dir / variant).exists():
+                source_split = source_dir / variant
+                break
+        
+        if not source_split:
+            logger.warning(f"  Split '{split}' not found in {source_dir}")
+            return
+        
+        # Collect images
+        image_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tif', '.tiff'}
+        images = []
+        for ext in image_extensions:
+            images.extend(source_split.rglob(f'*{ext}'))
+            images.extend(source_split.rglob(f'*{ext.upper()}'))
+        
+        if not images:
+            logger.warning(f"  No images in {source_split}")
+            return
+        
+        # Copy to output
+        target_dir = output_dir / split / disease_name
+        target_dir.mkdir(parents=True, exist_ok=True)
+        
+        copied = 0
+        for img_path in images:
+            dest_path = target_dir / img_path.name
+            # Handle duplicate filenames
+            if dest_path.exists():
+                dest_path = target_dir / f"{img_path.stem}_{copied}{img_path.suffix}"
+            shutil.copy2(img_path, dest_path)
+            copied += 1
+        
+        logger.info(f"    {split}: {copied} images -> {target_dir}")
+    
+    def _split_and_copy(self, source_folder: Path, output_dir: Path, disease_name: str, val_from_train: bool = False):
+        """Split a folder into train/val"""
+        from sklearn.model_selection import train_test_split
+        
+        image_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tif', '.tiff'}
+        images = []
+        for ext in image_extensions:
+            images.extend(source_folder.rglob(f'*{ext}'))
+            images.extend(source_folder.rglob(f'*{ext.upper()}'))
+        
+        if val_from_train:
+            train, val = train_test_split(list(images), test_size=0.1, random_state=42)
+            
+            for split_name, split_images in [('train', train), ('val', val)]:
+                target_dir = output_dir / split_name / disease_name
+                target_dir.mkdir(parents=True, exist_ok=True)
+                
+                for img_path in split_images:
+                    shutil.copy2(img_path, target_dir / img_path.name)
     
     def create_dataset_summary(self, results: Dict[str, bool]):
         """Create summary of downloaded datasets"""
@@ -514,6 +806,11 @@ def main():
         help='Download only clinical guidelines'
     )
     parser.add_argument(
+        '--normalize-only',
+        action='store_true',
+        help='Only normalize existing downloaded datasets (no downloads)'
+    )
+    parser.add_argument(
         '--data-dir',
         type=str,
         default='data',
@@ -532,6 +829,13 @@ def main():
     print("Hybrid Neuro-Symbolic Clinical Decision Support System")
     print("="*80 + "\n")
     
+    # Normalize only mode
+    if args.normalize_only:
+        logger.info("📐 Normalizing existing datasets...")
+        downloader.normalize_skin_datasets()
+        print("\n✓ Normalization complete!")
+        return
+    
     # Download clinical guidelines
     if not args.kaggle_only:
         logger.info("📚 Step 1: Downloading Clinical Guidelines...")
@@ -549,6 +853,11 @@ def main():
         logger.info("\n📊 Step 3: Downloading Additional Datasets...")
         additional_results = downloader.download_additional_datasets()
         all_results.update(additional_results)
+        
+        # Normalize skin disease datasets
+        logger.info("\n📐 Step 4: Normalizing Skin Disease Datasets...")
+        logger.info("Creating unified train/val/test structure...\n")
+        downloader.normalize_skin_datasets()
     
     # Create summary
     if all_results:
@@ -563,16 +872,27 @@ def main():
         successful = sum(1 for v in all_results.values() if v)
         total = len(all_results)
         print(f"\n✓ Downloaded {successful}/{total} datasets successfully")
+        print(f"✓ Datasets normalized into unified structure")
         
         if successful < total:
             print("\n⚠ Some downloads failed. Check logs above for details.")
             print("You can still train with synthetic data or successfully downloaded datasets.")
     
     print(f"\n📁 All data saved in: {Path(args.data_dir).absolute()}")
+    print("\n🎯 Unified dataset structure created:")
+    print("   data/skin_lesions/")
+    print("     ├── train/")
+    print("     │   ├── Melanoma Skin Cancer Nevi and Moles/")
+    print("     │   ├── Eczema Photos/")
+    print("     │   ├── Psoriasis pictures Lichen Planus and related diseases/")
+    print("     │   └── Acne and Rosacea Photos/")
+    print("     ├── val/")
+    print("     └── test/")
     print("\n🚀 Next steps:")
     print("   1. Review: data/guidelines/clinical_guidelines.md")
     print("   2. Check: data/DATASET_SUMMARY.md")
-    print("   3. Train: python train.py --train-all")
+    print("   3. Train: python train.py --train-cnn")
+    print("   4. Launch UI: python app.py")
     print("\n" + "="*80 + "\n")
 
 
