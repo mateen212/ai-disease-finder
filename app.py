@@ -19,6 +19,11 @@ import pandas as pd
 import torch
 from PIL import Image
 import gradio as gr
+import shap
+import matplotlib.pyplot as plt
+import io
+import base64
+import torch.nn.functional as F
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / 'src'))
@@ -97,7 +102,9 @@ class ClinicalDiagnosisApp:
         wbc_count: float, platelet_count: float, hemoglobin: float,
         crp: float, ferritin: float,
         # Demographics
-        age: int, sex: str
+        age: int, sex: str,
+        # Filter
+        disease_filter: Optional[str] = None
     ) -> Tuple[str, str, str]:
         """
         Perform clinical diagnosis using rule engine and ML models
@@ -148,8 +155,12 @@ class ClinicalDiagnosisApp:
             # Get hybrid diagnosis
             diagnosis_result = self.hybrid_system.diagnose(patient_data)
             
+            # Filter results if disease_filter is specified
+            if disease_filter:
+                diagnosis_result = self._filter_disease_results(diagnosis_result, disease_filter)
+            
             # Format results
-            results_text = self._format_diagnosis_results(diagnosis_result)
+            results_text = self._format_diagnosis_results(diagnosis_result, disease_filter)
             chart_html = self._create_probability_chart(diagnosis_result['probabilities'])
             confidence_text = self._format_confidence(diagnosis_result)
             
@@ -159,7 +170,94 @@ class ClinicalDiagnosisApp:
             logger.error(f"Diagnosis error: {e}")
             return f"Error: {str(e)}", "", ""
     
-    def diagnose_skin_lesion(self, image: Optional[Image.Image]) -> Tuple[str, str, str]:
+    def diagnose_from_json(self, json_str: str, disease_filter: Optional[str] = None) -> Tuple[str, str, str, str]:
+        """
+        Diagnose from JSON input
+        
+        Returns:
+            Tuple of (results_text, chart_html, confidence_text, json_output)
+        """
+        try:
+            data = json.loads(json_str)
+            
+            # Extract with defaults
+            symptoms = data.get('symptoms', {})
+            vitals = data.get('vitals', {})
+            labs = data.get('labs', {})
+            demographics = data.get('demographics', {})
+            
+            results = self.diagnose_clinical(
+                fever=symptoms.get('fever', False),
+                cough=symptoms.get('cough', False),
+                fatigue=symptoms.get('fatigue', False),
+                headache=symptoms.get('headache', False),
+                shortness_of_breath=symptoms.get('shortness_of_breath', False),
+                loss_of_taste=symptoms.get('loss_of_taste', False),
+                sore_throat=symptoms.get('sore_throat', False),
+                body_aches=symptoms.get('body_aches', False),
+                nausea=symptoms.get('nausea', False),
+                vomiting=symptoms.get('vomiting', False),
+                diarrhea=symptoms.get('diarrhea', False),
+                rash=symptoms.get('rash', False),
+                joint_pain=symptoms.get('joint_pain', False),
+                retro_orbital_pain=symptoms.get('retro_orbital_pain', False),
+                temperature=vitals.get('temperature', 37.0),
+                heart_rate=vitals.get('heart_rate', 75.0),
+                respiratory_rate=vitals.get('respiratory_rate', 16.0),
+                blood_pressure_systolic=vitals.get('blood_pressure_systolic', 120.0),
+                blood_pressure_diastolic=vitals.get('blood_pressure_diastolic', 80.0),
+                oxygen_saturation=vitals.get('oxygen_saturation', 98.0),
+                wbc_count=labs.get('wbc_count', 7000.0),
+                platelet_count=labs.get('platelet_count', 250000.0),
+                hemoglobin=labs.get('hemoglobin', 14.0),
+                crp=labs.get('crp', 5.0),
+                ferritin=labs.get('ferritin', 100.0),
+                age=demographics.get('age', 30),
+                sex=demographics.get('sex', 'Male'),
+                disease_filter=disease_filter
+            )
+            
+            # Create output JSON (pretty formatted for display)
+            output_json = json.dumps(data, indent=2)
+            
+            return results[0], results[1], results[2], output_json
+            
+        except json.JSONDecodeError as e:
+            return f"Invalid JSON: {str(e)}", "", "", ""
+        except Exception as e:
+            logger.error(f"JSON diagnosis error: {e}")
+            return f"Error: {str(e)}", "", "", ""
+    
+    def _filter_disease_results(self, result: Dict[str, Any], disease_filter: str) -> Dict[str, Any]:
+        """Filter diagnosis results to focus on specific disease"""
+        disease_map = {
+            'COVID-19': ['covid', 'covid-19', 'coronavirus'],
+            'Dengue': ['dengue'],
+            'Pneumonia': ['pneumonia']
+        }
+        
+        if disease_filter not in disease_map:
+            return result
+        
+        # Filter probabilities to only relevant diseases
+        keywords = disease_map[disease_filter]
+        filtered_probs = {
+            disease: prob 
+            for disease, prob in result['probabilities'].items()
+            if any(kw in disease.lower() for kw in keywords)
+        }
+        
+        # If no matches, keep original
+        if not filtered_probs:
+            filtered_probs = result['probabilities']
+        
+        # Update result
+        filtered_result = result.copy()
+        filtered_result['probabilities'] = filtered_probs
+        
+        return filtered_result
+    
+    def diagnose_skin_lesion(self, image: Optional[Image.Image], explain_mode: str = 'Fast (saliency)') -> Tuple[str, str, str, str]:
         """
         Diagnose skin lesion from uploaded image
         
@@ -167,29 +265,34 @@ class ClinicalDiagnosisApp:
             Tuple of (results_text, chart_html, confidence_text)
         """
         if image is None:
-            return "Please upload an image", "", ""
+            return "Please upload an image", "", "", ""
         
         try:
             # Preprocess image
+            print("Preprocessing image...")
             image_tensor = self.preprocessor.test_transform(image)
-            
+            print("Image preprocessed successfully", image_tensor.shape)
             # Get CNN predictions
             probabilities = self.cnn_model.predict_proba(image_tensor)
+            print("CNN prediction probabilities:", probabilities)
             
             # Find top prediction
             top_class = max(probabilities.items(), key=lambda x: x[1])
+            print(f"Top predicted class: {top_class[0]} with probability {top_class[1]:.4f}")
             
             # Format results
             results_text = f"## 🔬 Skin Lesion Analysis\n\n"
             results_text += f"**Primary Diagnosis:** {top_class[0]}\n\n"
             results_text += f"**Confidence:** {top_class[1]*100:.1f}%\n\n"
             results_text += "### All Probabilities:\n"
+            print("Formatting all probabilities for display...")
             
             sorted_probs = sorted(probabilities.items(), key=lambda x: x[1], reverse=True)
+            print("Sorted probabilities:", sorted_probs)
             for disease, prob in sorted_probs:
                 bar = "█" * int(prob * 20)
                 results_text += f"- **{disease}**: {prob*100:.1f}% {bar}\n"
-            
+            print("Formatted results text:", results_text)
             # Create chart
             chart_html = self._create_probability_chart(probabilities)
             
@@ -206,15 +309,33 @@ class ClinicalDiagnosisApp:
             
             confidence_text = f"<div style='padding:10px; background-color:{color}; color:white; border-radius:5px;'>{confidence}</div>"
             
-            return results_text, chart_html, confidence_text
+            # Default explanation: fast saliency overlay (selected via `explain_mode` argument)
+            explain_html = ""
+
+            if explain_mode in ('Fast', 'Fast (saliency)'):
+                try:
+                    explain_html = self._generate_saliency_image(image_tensor)
+                except Exception as e:
+                    logger.warning(f"Fast explanation failed: {e}")
+                    explain_html = ""
+            elif explain_mode in ('SHAP', 'SHAP (slow)'):
+                try:
+                    explain_html = self._generate_shap_image(image_tensor)
+                except Exception as e:
+                    logger.warning(f"SHAP explanation failed: {e}")
+                    explain_html = ""
+            elif explain_mode in ('Textual',):
+                explain_html = self._generate_textual_explanation(probabilities)
+
+            return results_text, chart_html, confidence_text, explain_html
             
         except Exception as e:
             logger.error(f"Skin lesion diagnosis error: {e}")
-            return f"Error: {str(e)}", "", ""
+            return f"Error: {str(e)}", "", "", ""
     
-    def _format_diagnosis_results(self, result: Dict[str, Any]) -> str:
+    def _format_diagnosis_results(self, result: Dict[str, Any], disease_filter: Optional[str] = None) -> str:
         """Format diagnosis results as markdown"""
-        text = "## 🏥 Diagnosis Results\n\n"
+        text = f"## 🏥 {disease_filter + ' ' if disease_filter else ''}Diagnosis Results\n\n"
         
         # Primary diagnosis
         text += f"### Primary Diagnosis: **{result['diagnosis']}**\n\n"
@@ -231,7 +352,11 @@ class ClinicalDiagnosisApp:
             text += "\n"
         
         # Top probabilities
-        text += "### Disease Probabilities:\n\n"
+        if disease_filter:
+            text += f"### {disease_filter} Probability:\n\n"
+        else:
+            text += "### Disease Probabilities:\n\n"
+        
         sorted_probs = sorted(result['probabilities'].items(), key=lambda x: x[1], reverse=True)
         for disease, prob in sorted_probs[:5]:
             bar = "█" * int(prob * 20)
@@ -307,6 +432,172 @@ class ClinicalDiagnosisApp:
         else:
             return "#6c757d"  # Gray
 
+    def _generate_shap_image(self, image_tensor: torch.Tensor) -> str:
+        """Create SHAP explanation image for the given image tensor and return HTML <img> data URI."""
+        try:
+            # Ensure model in eval mode
+            model = self.cnn_model.model
+            model.eval()
+
+            # Prepare background (single zero image) on same device
+            device = next(model.parameters()).device
+            if image_tensor.dim() == 3:
+                img = image_tensor.unsqueeze(0)
+            else:
+                img = image_tensor
+
+            # Create a small background set - zero image (works as baseline)
+            background = torch.zeros_like(img).to(device)
+
+            # Use GradientExplainer for PyTorch models
+            explainer = shap.GradientExplainer(model, background)
+
+            # Compute SHAP values (may take a few seconds)
+            shap_values = explainer.shap_values(img.to(device))
+
+            # shap_values is a list (one array per class) of shape (N, C, H, W)
+            # We'll sum absolute values across classes to visualise important pixels
+            import numpy as _np
+
+            summed = _np.sum(_np.abs(_np.stack([_np.transpose(sv[0], (1,2,0)) for sv in shap_values])), axis=0)
+
+            # Normalize for display
+            summed = (summed - summed.min()) / (summed.max() - summed.min() + 1e-8)
+
+            # Create heatmap plot over original image
+            fig, ax = plt.subplots(figsize=(4,4), dpi=100)
+            # Original image in HWC [0,1]
+            orig = _np.transpose(img.detach()[0].cpu().numpy(), (1,2,0))
+            ax.imshow(orig)
+            ax.imshow(summed, cmap='jet', alpha=0.5)
+            ax.axis('off')
+
+            buf = io.BytesIO()
+            plt.tight_layout()
+            fig.savefig(buf, format='png', bbox_inches='tight', pad_inches=0)
+            plt.close(fig)
+            buf.seek(0)
+
+            b64 = base64.b64encode(buf.read()).decode('utf-8')
+            html_img = f"data:image/png;base64,{b64}"
+            return html_img
+        except Exception as e:
+            logger.warning(f"Error generating SHAP image: {e}")
+            return ""
+
+    def _generate_saliency_image(self, image_tensor: torch.Tensor) -> str:
+        """Fast saliency (input-gradient) explanation overlaid on the image.
+
+        This is much faster than SHAP for a single image: one forward and one backward pass.
+        Returns a data-URI PNG string suitable for Gradio HTML/Image display.
+        """
+        try:
+            model = self.cnn_model.model
+            model.eval()
+
+            device = next(model.parameters()).device
+            if image_tensor.dim() == 3:
+                img = image_tensor.unsqueeze(0).to(device)
+            else:
+                img = image_tensor.to(device)
+
+            # Ensure gradients
+            img.requires_grad = True
+
+            outputs = model(img)
+            pred_idx = int(outputs.argmax(dim=1).item())
+            score = outputs[0, pred_idx]
+
+            model.zero_grad()
+            if img.grad is not None:
+                img.grad.zero_()
+            score.backward(retain_graph=False)
+
+            grad = img.grad.detach().cpu().numpy()[0]  # C,H,W
+            import numpy as _np
+
+            saliency = _np.sum(_np.abs(grad), axis=0)
+            saliency = (saliency - saliency.min()) / (saliency.max() - saliency.min() + 1e-8)
+
+            # Original image HWC in [0,1]
+            orig = _np.transpose(img[0].cpu().numpy(), (1,2,0))
+
+            fig, ax = plt.subplots(figsize=(4,4), dpi=100)
+            ax.imshow(orig)
+            ax.imshow(saliency, cmap='jet', alpha=0.5)
+            ax.axis('off')
+
+            buf = io.BytesIO()
+            plt.tight_layout()
+            fig.savefig(buf, format='png', bbox_inches='tight', pad_inches=0)
+            plt.close(fig)
+            buf.seek(0)
+
+            b64 = base64.b64encode(buf.read()).decode('utf-8')
+            return f"data:image/png;base64,{b64}"
+        except Exception as e:
+            logger.warning(f"Saliency generation failed: {e}")
+            return ""
+
+    def _generate_textual_explanation(self, probabilities: Dict[str, float]) -> str:
+        """Generate a concise textual explanation based on model probabilities."""
+        try:
+            # Use class order if available
+            classes = self.cnn_model.class_names or list(probabilities.keys())
+            sorted_probs = sorted(probabilities.items(), key=lambda x: x[1], reverse=True)
+
+            top, second = sorted_probs[0], sorted_probs[1] if len(sorted_probs) > 1 else (None, None)
+
+            templates = {
+                'Melanoma Skin Cancer Nevi and Moles': (
+                    "Model assigns {p:.1f}% probability to Melanoma. "
+                    "Visual patterns associated by the model include irregular borders and color variegation. "
+                    "Recommend dermatology referral and dermoscopic examination."
+                ),
+                'Eczema Photos': (
+                    "Model assigns {p:.1f}% probability to Eczema. "
+                    "Patterns the model finds include diffuse redness and scaling. "
+                    "Consider clinical correlation with history and topical treatment guidance."
+                ),
+                'Psoriasis pictures Lichen Planus and related diseases': (
+                    "Model assigns {p:.1f}% probability to Psoriasis or related conditions. "
+                    "The model highlights well-demarcated plaques and silvery scales. "
+                    "Consider dermatologist evaluation and possible biopsy if uncertain."
+                ),
+                'Acne and Rosacea Photos': (
+                    "Model assigns {p:.1f}% probability to Acne/Rosacea. "
+                    "Typical model features include pustules, comedones, or centrofacial erythema. "
+                    "Treatment depends on severity; consider dermatologic care."
+                ),
+                'Normal Healthy Skin': (
+                    "Model assigns {p:.1f}% probability to Normal/Healthy Skin. "
+                    "Image appears consistent with non-pathologic skin. "
+                    "No specific dermatologic intervention suggested based on image alone."
+                )
+            }
+
+            expl = "## Explanation\n\n"
+            for cls, prob in sorted_probs:
+                full_name = cls
+                p = prob * 100
+                if full_name in templates:
+                    expl += f"- **{full_name}**: {templates[full_name].format(p=p)}\n\n"
+                else:
+                    expl += f"- **{full_name}**: Model probability {p:.1f}%.\n\n"
+
+            # Add short recommendation based on top class confidence
+            if top and top[1] >= 0.8:
+                expl += "**Recommendation:** High-confidence result; consider specialist follow-up."
+            elif top and top[1] >= 0.5:
+                expl += "**Recommendation:** Moderate confidence; correlate clinically and consider expert review."
+            else:
+                expl += "**Recommendation:** Low confidence; obtain additional clinical information or specialist review."
+
+            return expl
+        except Exception as e:
+            logger.warning(f"Textual explanation failed: {e}")
+            return ""
+
 
 def create_interface():
     """Create Gradio interface"""
@@ -314,14 +605,12 @@ def create_interface():
     
     # Custom CSS
     custom_css = """
-    .gradio-container {
-        font-family: 'Arial', sans-serif;
-    }
-    .output-markdown h2 {
-        color: #2c3e50;
-        border-bottom: 2px solid #3498db;
-        padding-bottom: 10px;
-    }
+    .gradio-container { font-family: 'Inter', 'Arial', sans-serif; }
+    .gradio-container .panel { box-shadow: 0 6px 18px rgba(36, 37, 38, 0.08); border-radius: 12px; }
+    .output-markdown h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+    .gr-button.primary { background: linear-gradient(90deg,#357edd,#1b6ed8); color: white; border: none; }
+    .gradio-container .footer { color: #7f8c8d; }
+    img[alt="SHAP Explanation"] { max-width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
     """
     
     with gr.Blocks(css=custom_css, title="Clinical Diagnosis System") as interface:
@@ -335,71 +624,354 @@ def create_interface():
         """)
         
         with gr.Tabs():
-            # Tab 1: Clinical Diagnosis
+            # Tab 1: Clinical Diagnosis (with disease-specific sub-tabs)
             with gr.Tab("🩺 Clinical Diagnosis"):
-                gr.Markdown("### Enter patient information for clinical diagnosis")
+                gr.Markdown("### Select a disease-specific check below")
                 
-                with gr.Row():
-                    with gr.Column():
-                        gr.Markdown("#### Symptoms")
-                        fever = gr.Checkbox(label="Fever")
-                        cough = gr.Checkbox(label="Cough")
-                        fatigue = gr.Checkbox(label="Fatigue")
-                        headache = gr.Checkbox(label="Headache")
-                        shortness_of_breath = gr.Checkbox(label="Shortness of Breath")
-                        loss_of_taste = gr.Checkbox(label="Loss of Taste/Smell")
-                        sore_throat = gr.Checkbox(label="Sore Throat")
-                        body_aches = gr.Checkbox(label="Body Aches")
-                        nausea = gr.Checkbox(label="Nausea")
-                        vomiting = gr.Checkbox(label="Vomiting")
-                        diarrhea = gr.Checkbox(label="Diarrhea")
-                        rash = gr.Checkbox(label="Rash")
-                        joint_pain = gr.Checkbox(label="Joint Pain")
-                        retro_orbital_pain = gr.Checkbox(label="Retro-orbital Pain")
-                    
-                    with gr.Column():
-                        gr.Markdown("#### Vital Signs")
-                        temperature = gr.Slider(35, 42, value=37, label="Temperature (°C)")
-                        heart_rate = gr.Slider(40, 180, value=75, label="Heart Rate (bpm)")
-                        respiratory_rate = gr.Slider(8, 40, value=16, label="Respiratory Rate")
-                        bp_sys = gr.Slider(80, 200, value=120, label="Systolic BP (mmHg)")
-                        bp_dia = gr.Slider(40, 130, value=80, label="Diastolic BP (mmHg)")
-                        oxygen_sat = gr.Slider(70, 100, value=98, label="Oxygen Saturation (%)")
+                with gr.Tabs():
+                    # Sub-tab 1: COVID-19 Check
+                    with gr.Tab("🦠 COVID-19 Check"):
+                        gr.Markdown("**Primary Symptoms:** Fever, cough, loss of taste/smell, shortness of breath")
                         
-                        gr.Markdown("#### Demographics")
-                        age = gr.Slider(0, 120, value=30, label="Age")
-                        sex = gr.Radio(["Male", "Female", "Other"], label="Sex", value="Male")
+                        with gr.Tabs():
+                            # Form Input
+                            with gr.Tab("📝 Form Input"):
+                                with gr.Row():
+                                    with gr.Column():
+                                        gr.Markdown("#### COVID-19 Specific Symptoms")
+                                        covid_fever = gr.Checkbox(label="Fever", value=False)
+                                        covid_cough = gr.Checkbox(label="Dry Cough")
+                                        covid_fatigue = gr.Checkbox(label="Fatigue")
+                                        covid_loss_taste = gr.Checkbox(label="Loss of Taste/Smell")
+                                        covid_shortness = gr.Checkbox(label="Shortness of Breath")
+                                        covid_sore_throat = gr.Checkbox(label="Sore Throat")
+                                        covid_body_aches = gr.Checkbox(label="Body Aches")
+                                        covid_headache = gr.Checkbox(label="Headache")
+                                        covid_diarrhea = gr.Checkbox(label="Diarrhea")
+                                    
+                                    with gr.Column():
+                                        gr.Markdown("#### Vital Signs")
+                                        covid_temp = gr.Slider(35, 42, value=37, label="Temperature (°C)")
+                                        covid_hr = gr.Slider(40, 180, value=75, label="Heart Rate (bpm)")
+                                        covid_rr = gr.Slider(8, 40, value=16, label="Respiratory Rate")
+                                        covid_o2 = gr.Slider(70, 100, value=98, label="Oxygen Saturation (%)")
+                                        covid_bp_sys = gr.Slider(80, 200, value=120, label="Systolic BP")
+                                        covid_bp_dia = gr.Slider(40, 130, value=80, label="Diastolic BP")
+                                    
+                                    with gr.Column():
+                                        gr.Markdown("#### Demographics & Labs")
+                                        covid_age = gr.Slider(0, 120, value=30, label="Age")
+                                        covid_sex = gr.Radio(["Male", "Female", "Other"], label="Sex", value="Male")
+                                        covid_wbc = gr.Slider(1000, 20000, value=7000, label="WBC Count")
+                                        covid_crp = gr.Slider(0, 200, value=5, label="CRP (mg/L)")
+                                        covid_ferritin = gr.Slider(10, 1000, value=100, label="Ferritin (ng/mL)")
+                                
+                                covid_btn = gr.Button("🔍 Check COVID-19", variant="primary", size="lg")
+                            
+                            # JSON Input
+                            with gr.Tab("📋 JSON Input"):
+                                gr.Markdown("### Paste or edit patient data in JSON format")
+                                covid_json_input = gr.Code(
+                                    value="""{
+  "symptoms": {
+    "fever": true,
+    "cough": true,
+    "fatigue": false,
+    "headache": false,
+    "shortness_of_breath": false,
+    "loss_of_taste": true,
+    "sore_throat": false,
+    "body_aches": false,
+    "nausea": false,
+    "vomiting": false,
+    "diarrhea": false,
+    "rash": false,
+    "joint_pain": false,
+    "retro_orbital_pain": false
+  },
+  "vitals": {
+    "temperature": 38.5,
+    "heart_rate": 85,
+    "respiratory_rate": 18,
+    "blood_pressure_systolic": 120,
+    "blood_pressure_diastolic": 80,
+    "oxygen_saturation": 96
+  },
+  "labs": {
+    "wbc_count": 7000,
+    "platelet_count": 250000,
+    "hemoglobin": 14,
+    "crp": 15,
+    "ferritin": 200
+  },
+  "demographics": {
+    "age": 35,
+    "sex": "Male"
+  }
+}""",
+                                    language="json",
+                                    label="Patient Data (JSON)"
+                                )
+                                covid_json_btn = gr.Button("🔍 Check COVID-19 from JSON", variant="primary", size="lg")
+                                covid_json_output = gr.Code(language="json", label="Processed Input")
+                        
+                        with gr.Row():
+                            with gr.Column():
+                                covid_results = gr.Markdown()
+                            with gr.Column():
+                                covid_confidence = gr.HTML()
+                        covid_chart = gr.HTML()
+                        
+                        # Form button handler
+                        covid_btn.click(
+                            fn=lambda *args: app.diagnose_clinical(*args, disease_filter='COVID-19'),
+                            inputs=[
+                                covid_fever, covid_cough, covid_fatigue, covid_headache, covid_shortness,
+                                covid_loss_taste, covid_sore_throat, covid_body_aches, 
+                                gr.State(False), gr.State(False), covid_diarrhea, gr.State(False), 
+                                gr.State(False), gr.State(False),
+                                covid_temp, covid_hr, covid_rr, covid_bp_sys, covid_bp_dia, covid_o2,
+                                covid_wbc, gr.State(250000), gr.State(14), covid_crp, covid_ferritin,
+                                covid_age, covid_sex
+                            ],
+                            outputs=[covid_results, covid_chart, covid_confidence]
+                        )
+                        
+                        # JSON button handler
+                        covid_json_btn.click(
+                            fn=lambda json_str: app.diagnose_from_json(json_str, disease_filter='COVID-19'),
+                            inputs=[covid_json_input],
+                            outputs=[covid_results, covid_chart, covid_confidence, covid_json_output]
+                        )
                     
-                    with gr.Column():
-                        gr.Markdown("#### Laboratory Values")
-                        wbc = gr.Slider(1000, 20000, value=7000, label="WBC Count (cells/μL)")
-                        platelet = gr.Slider(20000, 500000, value=250000, label="Platelet Count (cells/μL)")
-                        hemoglobin = gr.Slider(5, 20, value=14, label="Hemoglobin (g/dL)")
-                        crp = gr.Slider(0, 200, value=5, label="CRP (mg/L)")
-                        ferritin = gr.Slider(10, 1000, value=100, label="Ferritin (ng/mL)")
-                
-                diagnose_btn = gr.Button("🔍 Diagnose", variant="primary", size="lg")
-                
-                with gr.Row():
-                    with gr.Column():
-                        clinical_results = gr.Markdown()
-                    with gr.Column():
-                        clinical_confidence = gr.HTML()
-                
-                clinical_chart = gr.HTML()
-                
-                diagnose_btn.click(
-                    fn=app.diagnose_clinical,
-                    inputs=[
-                        fever, cough, fatigue, headache, shortness_of_breath,
-                        loss_of_taste, sore_throat, body_aches, nausea, vomiting,
-                        diarrhea, rash, joint_pain, retro_orbital_pain,
-                        temperature, heart_rate, respiratory_rate, bp_sys, bp_dia,
-                        oxygen_sat, wbc, platelet, hemoglobin, crp, ferritin,
-                        age, sex
-                    ],
-                    outputs=[clinical_results, clinical_chart, clinical_confidence]
-                )
+                    # Sub-tab 2: Dengue Check
+                    with gr.Tab("🦟 Dengue Check"):
+                        gr.Markdown("**Primary Symptoms:** High fever, severe headache, retro-orbital pain, joint/muscle pain, rash")
+                        
+                        with gr.Tabs():
+                            # Form Input
+                            with gr.Tab("📝 Form Input"):
+                                with gr.Row():
+                                    with gr.Column():
+                                        gr.Markdown("#### Dengue Specific Symptoms")
+                                        dengue_fever = gr.Checkbox(label="High Fever (>39°C)")
+                                        dengue_headache = gr.Checkbox(label="Severe Headache")
+                                        dengue_retro = gr.Checkbox(label="Retro-orbital Pain (Behind Eyes)")
+                                        dengue_joint = gr.Checkbox(label="Severe Joint/Muscle Pain")
+                                        dengue_rash = gr.Checkbox(label="Skin Rash")
+                                        dengue_nausea = gr.Checkbox(label="Nausea/Vomiting")
+                                        dengue_fatigue = gr.Checkbox(label="Fatigue")
+                                        dengue_body_aches = gr.Checkbox(label="Body Aches")
+                                    
+                                    with gr.Column():
+                                        gr.Markdown("#### Vital Signs")
+                                        dengue_temp = gr.Slider(35, 42, value=38.5, label="Temperature (°C)")
+                                        dengue_hr = gr.Slider(40, 180, value=75, label="Heart Rate (bpm)")
+                                        dengue_rr = gr.Slider(8, 40, value=16, label="Respiratory Rate")
+                                        dengue_bp_sys = gr.Slider(80, 200, value=110, label="Systolic BP")
+                                        dengue_bp_dia = gr.Slider(40, 130, value=70, label="Diastolic BP")
+                                        dengue_o2 = gr.Slider(70, 100, value=98, label="Oxygen Saturation (%)")
+                                    
+                                    with gr.Column():
+                                        gr.Markdown("#### Demographics & Labs")
+                                        dengue_age = gr.Slider(0, 120, value=30, label="Age")
+                                        dengue_sex = gr.Radio(["Male", "Female", "Other"], label="Sex", value="Male")
+                                        dengue_wbc = gr.Slider(1000, 20000, value=4000, label="WBC Count (often low)")
+                                        dengue_platelet = gr.Slider(20000, 500000, value=100000, label="Platelet Count (often low)")
+                                        dengue_hgb = gr.Slider(5, 20, value=14, label="Hemoglobin (g/dL)")
+                                
+                                dengue_btn = gr.Button("🔍 Check Dengue", variant="primary", size="lg")
+                            
+                            # JSON Input
+                            with gr.Tab("📋 JSON Input"):
+                                gr.Markdown("### Paste or edit patient data in JSON format")
+                                dengue_json_input = gr.Code(
+                                    value="""{
+  "symptoms": {
+    "fever": true,
+    "cough": false,
+    "fatigue": true,
+    "headache": true,
+    "shortness_of_breath": false,
+    "loss_of_taste": false,
+    "sore_throat": false,
+    "body_aches": true,
+    "nausea": true,
+    "vomiting": false,
+    "diarrhea": false,
+    "rash": true,
+    "joint_pain": true,
+    "retro_orbital_pain": true
+  },
+  "vitals": {
+    "temperature": 39.5,
+    "heart_rate": 90,
+    "respiratory_rate": 18,
+    "blood_pressure_systolic": 110,
+    "blood_pressure_diastolic": 70,
+    "oxygen_saturation": 98
+  },
+  "labs": {
+    "wbc_count": 4000,
+    "platelet_count": 80000,
+    "hemoglobin": 13,
+    "crp": 10,
+    "ferritin": 100
+  },
+  "demographics": {
+    "age": 28,
+    "sex": "Female"
+  }
+}""",
+                                    language="json",
+                                    label="Patient Data (JSON)"
+                                )
+                                dengue_json_btn = gr.Button("🔍 Check Dengue from JSON", variant="primary", size="lg")
+                                dengue_json_output = gr.Code(language="json", label="Processed Input")
+                        
+                        with gr.Row():
+                            with gr.Column():
+                                dengue_results = gr.Markdown()
+                            with gr.Column():
+                                dengue_confidence = gr.HTML()
+                        dengue_chart = gr.HTML()
+                        
+                        # Form button handler
+                        dengue_btn.click(
+                            fn=lambda *args: app.diagnose_clinical(*args, disease_filter='Dengue'),
+                            inputs=[
+                                dengue_fever, gr.State(False), dengue_fatigue, dengue_headache, gr.State(False),
+                                gr.State(False), gr.State(False), dengue_body_aches, 
+                                dengue_nausea, gr.State(False), gr.State(False), dengue_rash, 
+                                dengue_joint, dengue_retro,
+                                dengue_temp, dengue_hr, dengue_rr, dengue_bp_sys, dengue_bp_dia, dengue_o2,
+                                dengue_wbc, dengue_platelet, dengue_hgb, gr.State(5), gr.State(100),
+                                dengue_age, dengue_sex
+                            ],
+                            outputs=[dengue_results, dengue_chart, dengue_confidence]
+                        )
+                        
+                        # JSON button handler
+                        dengue_json_btn.click(
+                            fn=lambda json_str: app.diagnose_from_json(json_str, disease_filter='Dengue'),
+                            inputs=[dengue_json_input],
+                            outputs=[dengue_results, dengue_chart, dengue_confidence, dengue_json_output]
+                        )
+                    
+                    # Sub-tab 3: Pneumonia Check
+                    with gr.Tab("🫁 Pneumonia Check"):
+                        gr.Markdown("**Primary Symptoms:** Cough, fever, chest pain, difficulty breathing, fatigue")
+                        
+                        with gr.Tabs():
+                            # Form Input
+                            with gr.Tab("📝 Form Input"):
+                                with gr.Row():
+                                    with gr.Column():
+                                        gr.Markdown("#### Pneumonia Specific Symptoms")
+                                        pneumonia_cough = gr.Checkbox(label="Persistent Cough")
+                                        pneumonia_fever = gr.Checkbox(label="Fever")
+                                        pneumonia_shortness = gr.Checkbox(label="Shortness of Breath")
+                                        pneumonia_fatigue = gr.Checkbox(label="Fatigue/Weakness")
+                                        pneumonia_body_aches = gr.Checkbox(label="Chest Pain/Body Aches")
+                                        pneumonia_headache = gr.Checkbox(label="Headache")
+                                        pneumonia_nausea = gr.Checkbox(label="Nausea")
+                                        pneumonia_sore_throat = gr.Checkbox(label="Sore Throat")
+                                    
+                                    with gr.Column():
+                                        gr.Markdown("#### Vital Signs")
+                                        pneumonia_temp = gr.Slider(35, 42, value=38, label="Temperature (°C)")
+                                        pneumonia_hr = gr.Slider(40, 180, value=85, label="Heart Rate (bpm)")
+                                        pneumonia_rr = gr.Slider(8, 40, value=22, label="Respiratory Rate (often elevated)")
+                                        pneumonia_o2 = gr.Slider(70, 100, value=94, label="Oxygen Saturation (%)") 
+                                        pneumonia_bp_sys = gr.Slider(80, 200, value=120, label="Systolic BP")
+                                        pneumonia_bp_dia = gr.Slider(40, 130, value=80, label="Diastolic BP")
+                                    
+                                    with gr.Column():
+                                        gr.Markdown("#### Demographics & Labs")
+                                        pneumonia_age = gr.Slider(0, 120, value=30, label="Age")
+                                        pneumonia_sex = gr.Radio(["Male", "Female", "Other"], label="Sex", value="Male")
+                                        pneumonia_wbc = gr.Slider(1000, 20000, value=12000, label="WBC Count (often high)")
+                                        pneumonia_crp = gr.Slider(0, 200, value=50, label="CRP (mg/L) - often elevated")
+                                        pneumonia_hgb = gr.Slider(5, 20, value=14, label="Hemoglobin (g/dL)")
+                                
+                                pneumonia_btn = gr.Button("🔍 Check Pneumonia", variant="primary", size="lg")
+                            
+                            # JSON Input
+                            with gr.Tab("📋 JSON Input"):
+                                gr.Markdown("### Paste or edit patient data in JSON format")
+                                pneumonia_json_input = gr.Code(
+                                    value="""{
+  "symptoms": {
+    "fever": true,
+    "cough": true,
+    "fatigue": true,
+    "headache": true,
+    "shortness_of_breath": true,
+    "loss_of_taste": false,
+    "sore_throat": false,
+    "body_aches": true,
+    "nausea": false,
+    "vomiting": false,
+    "diarrhea": false,
+    "rash": false,
+    "joint_pain": false,
+    "retro_orbital_pain": false
+  },
+  "vitals": {
+    "temperature": 38.5,
+    "heart_rate": 95,
+    "respiratory_rate": 24,
+    "blood_pressure_systolic": 125,
+    "blood_pressure_diastolic": 80,
+    "oxygen_saturation": 92
+  },
+  "labs": {
+    "wbc_count": 13000,
+    "platelet_count": 250000,
+    "hemoglobin": 13.5,
+    "crp": 75,
+    "ferritin": 150
+  },
+  "demographics": {
+    "age": 45,
+    "sex": "Male"
+  }
+}""",
+                                    language="json",
+                                    label="Patient Data (JSON)"
+                                )
+                                pneumonia_json_btn = gr.Button("🔍 Check Pneumonia from JSON", variant="primary", size="lg")
+                                pneumonia_json_output = gr.Code(language="json", label="Processed Input")
+                        
+                        with gr.Row():
+                            with gr.Column():
+                                pneumonia_results = gr.Markdown()
+                            with gr.Column():
+                                pneumonia_confidence = gr.HTML()
+                        pneumonia_chart = gr.HTML()
+                        
+                        # Form button handler
+                        pneumonia_btn.click(
+                            fn=lambda *args: app.diagnose_clinical(*args, disease_filter='Pneumonia'),
+                            inputs=[
+                                pneumonia_fever, pneumonia_cough, pneumonia_fatigue, pneumonia_headache, 
+                                pneumonia_shortness, gr.State(False), pneumonia_sore_throat, pneumonia_body_aches, 
+                                pneumonia_nausea, gr.State(False), gr.State(False), gr.State(False), 
+                                gr.State(False), gr.State(False),
+                                pneumonia_temp, pneumonia_hr, pneumonia_rr, pneumonia_bp_sys, 
+                                pneumonia_bp_dia, pneumonia_o2,
+                                pneumonia_wbc, gr.State(250000), pneumonia_hgb, pneumonia_crp, gr.State(100),
+                                pneumonia_age, pneumonia_sex
+                            ],
+                            outputs=[pneumonia_results, pneumonia_chart, pneumonia_confidence]
+                        )
+                        
+                        # JSON button handler
+                        pneumonia_json_btn.click(
+                            fn=lambda json_str: app.diagnose_from_json(json_str, disease_filter='Pneumonia'),
+                            inputs=[pneumonia_json_input],
+                            outputs=[pneumonia_results, pneumonia_chart, pneumonia_confidence, pneumonia_json_output]
+                        )
             
             # Tab 2: Skin Lesion Analysis
             with gr.Tab("🔬 Skin Lesion Analysis"):
@@ -418,20 +990,26 @@ def create_interface():
                 """)
                 
                 with gr.Row():
-                    with gr.Column():
-                        skin_image = gr.Image(type="pil", label="Upload Skin Lesion Image")
+                    with gr.Column(scale=6):
+                        skin_image = gr.Image(type="pil", label="Upload Skin Lesion Image", elem_id="skin-upload")
                         analyze_btn = gr.Button("🔍 Analyze Image", variant="primary", size="lg")
-                    
-                    with gr.Column():
+
+                    with gr.Column(scale=6):
                         skin_confidence = gr.HTML()
                         skin_results = gr.Markdown()
-                
+                        explain_mode = gr.Radio(
+                            choices=["None", "Fast (saliency)", "SHAP (slow)", "Textual"],
+                            label="Explanation",
+                            value="Fast (saliency)"
+                        )
+
                 skin_chart = gr.HTML()
-                
+                shap_output = gr.HTML(label="Explanation")
+
                 analyze_btn.click(
                     fn=app.diagnose_skin_lesion,
-                    inputs=[skin_image],
-                    outputs=[skin_results, skin_chart, skin_confidence]
+                    inputs=[skin_image, explain_mode],
+                    outputs=[skin_results, skin_chart, skin_confidence, shap_output]
                 )
             
             # Tab 3: About
