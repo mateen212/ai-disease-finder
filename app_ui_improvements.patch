@@ -1,0 +1,10 @@
+# UI Improvements for app.py
+
+## Change 1: Improve guidance section title
+Line 176: Change generic "Official Guidance (excerpt):" to disease-specific title with emoji
+
+## Change 2: Add better diagnosis header
+Line 362: Add emoji and improved formatting for diagnosis results
+
+## Change 3: Show rule firing details
+Line 370: Add breakdown of which rules fired for primary vs competing diagnoses

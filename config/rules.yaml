@@ -104,8 +104,27 @@ covid19_rules:
           value: true
     conclusion:
       disease: "covid19"
-      probability_boost: 0.35
+      probability_boost: 0.40
       confidence: "high"
+
+  - name: "COVID19_Pathognomonic"
+    description: "COVID-19 with highly specific symptoms (loss of taste/smell)"
+    conditions:
+      all:
+        - symptom: "fever"
+          operator: "=="
+          value: true
+      any:
+        - symptom: "loss_of_taste"
+          operator: "=="
+          value: true
+        - symptom: "loss_of_smell"
+          operator: "=="
+          value: true
+    conclusion:
+      disease: "covid19"
+      probability_boost: 0.45
+      confidence: "very_high"
 
   - name: "COVID19_Respiratory_Distress"
     description: "COVID-19 with respiratory involvement"
@@ -120,7 +139,33 @@ covid19_rules:
     conclusion:
       disease: "covid19"
       risk_level: "severe"
-      probability_boost: 0.4
+      probability_boost: 0.35
+
+  - name: "COVID19_Critical_Hypoxemia"
+    description: "COVID-19 with critical oxygen saturation (<90%)"
+    conditions:
+      all:
+        - vital: "oxygen_saturation"
+          operator: "<"
+          value: 90
+      any_2_of:
+        - symptom: "fever"
+          operator: "=="
+          value: true
+        - symptom: "cough"
+          operator: "=="
+          value: true
+        - symptom: "shortness_of_breath"
+          operator: "=="
+          value: true
+        - symptom: "fatigue"
+          operator: "=="
+          value: true
+    conclusion:
+      disease: "covid19"
+      risk_level: "critical"
+      probability_boost: 0.50
+      confidence: "very_high"
 
 pneumonia_rules:
   - name: "Pneumonia_Rule_Classic"

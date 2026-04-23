@@ -253,7 +253,7 @@ class SkinLesionCNN:
         
         self.architecture = cnn_config.get('architecture', 'efficientnet_b0')
         self.num_classes = cnn_config.get('num_classes', 4)
-        self.input_size = cnn_config.get('input_size', 224)
+        self.input_size = cnn_config.get('input_size', 512)
         self.batch_size = cnn_config.get('batch_size', 32)
         self.learning_rate = cnn_config.get('learning_rate', 0.001)
         self.epochs = cnn_config.get('epochs', 50)

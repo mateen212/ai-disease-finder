@@ -61,7 +61,7 @@ class DataPreprocessor:
     def _setup_image_transforms(self):
         """Setup image preprocessing and augmentation transforms"""
         cnn_config = self.config.get('cnn', {})
-        input_size = cnn_config.get('input_size', 224)
+        input_size = cnn_config.get('input_size', 512)
         norm_mean = cnn_config['normalization']['mean']
         norm_std = cnn_config['normalization']['std']
         
@@ -382,11 +382,11 @@ class DataPreprocessor:
         
         # Disease mapping from short folder names to full class names
         disease_mapping = {
-            'melanoma': 'Melanoma Skin Cancer Nevi and Moles',
-            'eczema': 'Eczema Photos',
-            'psoriasis': 'Psoriasis pictures Lichen Planus and related diseases',
-            'acne': 'Acne and Rosacea Photos',
-            'normal': 'Normal Healthy Skin'
+            "Acne and Rosacea Photos",
+            "Eczema Photos",
+            "Melanoma Skin Cancer Nevi and Moles",
+            "Normal Healthy Skin",
+            "Psoriasis pictures Lichen Planus and related diseases"
         }
         
         class_names = list(disease_mapping.values())

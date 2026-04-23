@@ -32,6 +32,7 @@ from src.rule_engine import RuleEngine
 from src.ml_models import RandomForestDiagnostic, SkinLesionCNN
 from src.data_preprocessing import DataPreprocessor
 from src.hybrid_system import HybridDiagnosticSystem
+from src.explainability import ExplainabilityModule
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -47,11 +48,11 @@ class ClinicalDiagnosisApp:
         # Skin lesion class names (define BEFORE loading models)
         # Updated to match new 5-class training dataset (including healthy skin)
         self.skin_classes = [
-            'Melanoma Skin Cancer Nevi and Moles',
-            'Eczema Photos',
-            'Psoriasis pictures Lichen Planus and related diseases',
-            'Acne and Rosacea Photos',
-            'Normal Healthy Skin'
+            "Acne and Rosacea Photos",
+            "Eczema Photos",
+            "Melanoma Skin Cancer Nevi and Moles",
+            "Normal Healthy Skin",
+            "Psoriasis pictures Lichen Planus and related diseases"
         ]
         
         # Initialize components
@@ -60,6 +61,8 @@ class ClinicalDiagnosisApp:
         self.cnn_model = SkinLesionCNN()
         self.preprocessor = DataPreprocessor()
         self.hybrid_system = HybridDiagnosticSystem()
+        # Explainability helper (guidelines + textual fusion)
+        self.explainer = ExplainabilityModule()
         
         # Load trained models
         self._load_models()
@@ -163,7 +166,21 @@ class ClinicalDiagnosisApp:
             results_text = self._format_diagnosis_results(diagnosis_result, disease_filter)
             chart_html = self._create_probability_chart(diagnosis_result['probabilities'])
             confidence_text = self._format_confidence(diagnosis_result)
-            
+
+            # Append disease-specific guideline excerpt
+            try:
+                primary = diagnosis_result.get('diagnosis')
+                if primary:
+                    guidance_data = self.explainer.get_guidance_for_disease(primary)
+                    if guidance_data and guidance_data.get('content') and len(guidance_data['content']) > 50:
+                        disease_display = primary.upper().replace('_', ' ')
+                        source = guidance_data.get('source', 'clinical guidelines')
+                        results_text += f"\n\n### 📋 {disease_display} Clinical Guidelines\n\n"
+                        results_text += guidance_data['content']
+                        results_text += f"\n\n*Source: {source}*"
+            except Exception as e:
+                logger.debug(f"Could not append clinical guidance: {e}")
+
             return results_text, chart_html, confidence_text
             
         except Exception as e:
@@ -280,6 +297,7 @@ class ClinicalDiagnosisApp:
             top_class = max(probabilities.items(), key=lambda x: x[1])
             print(f"Top predicted class: {top_class[0]} with probability {top_class[1]:.4f}")
             
+            
             # Format results
             results_text = f"## 🔬 Skin Lesion Analysis\n\n"
             results_text += f"**Primary Diagnosis:** {top_class[0]}\n\n"
@@ -295,6 +313,14 @@ class ClinicalDiagnosisApp:
             print("Formatted results text:", results_text)
             # Create chart
             chart_html = self._create_probability_chart(probabilities)
+
+            # Always append a detailed textual explanation (guidance + probabilities)
+            try:
+                top_name = max(probabilities.items(), key=lambda x: x[1])[0]
+                detailed_text = self.explainer.generate_narrative_for_image(probabilities, top_name)
+                results_text += "\n\n### Detailed Explanation and Guidance:\n\n" + detailed_text
+            except Exception as e:
+                logger.debug(f"Could not generate detailed guidance text: {e}")
             
             # Confidence assessment
             if top_class[1] >= 0.8:
@@ -325,7 +351,10 @@ class ClinicalDiagnosisApp:
                     logger.warning(f"SHAP explanation failed: {e}")
                     explain_html = ""
             elif explain_mode in ('Textual',):
-                explain_html = self._generate_textual_explanation(probabilities)
+                # Use ExplainabilityModule to build textual explanation combining
+                # guideline text (from data/guidelines) and model probabilities.
+                top = max(probabilities.items(), key=lambda x: x[1])[0]
+                # explain_html = self.explainer.generate_text_for_image(probabilities, top)
 
             return results_text, chart_html, confidence_text, explain_html
             
@@ -335,20 +364,69 @@ class ClinicalDiagnosisApp:
     
     def _format_diagnosis_results(self, result: Dict[str, Any], disease_filter: Optional[str] = None) -> str:
         """Format diagnosis results as markdown"""
-        text = f"## 🏥 {disease_filter + ' ' if disease_filter else ''}Diagnosis Results\n\n"
+        diagnosis = result['diagnosis']
+        confidence = result['confidence']
+        
+        # Select emoji based on disease
+        emoji = "🩺"  # Stethoscope default
+        if 'covid' in diagnosis.lower():
+            emoji = "💉"  # Syringe
+        elif 'dengue' in diagnosis.lower() or 'malaria' in diagnosis.lower():
+            emoji = "🦟"  # Mosquito
+        elif 'pneumonia' in diagnosis.lower():
+            emoji = "🫁"  # Lungs
+        elif any(x in diagnosis.lower() for x in ['melanoma', 'acne', 'eczema', 'psoriasis']):
+            emoji = "👨‍⚕️"  # Health worker
+        
+        diagnosis_display = diagnosis.upper().replace('_', ' ')
+        text = f"## {emoji} Clinical Diagnosis Results\n\n"
         
         # Primary diagnosis
-        text += f"### Primary Diagnosis: **{result['diagnosis']}**\n\n"
-        text += f"**Overall Confidence:** {result['confidence']*100:.1f}%\n\n"
+        text += f"### Primary Diagnosis: **{diagnosis_display}**\n\n"
+        text += f"**Overall Confidence:** {confidence*100:.1f}%\n\n"
         
         # Component predictions
-        text += "### Component Model Predictions:\n\n"
+        text += "### 🔍 Component Model Predictions:\n\n"
         
         for component, data in result['component_predictions'].items():
             text += f"#### {component}\n"
             if 'top_disease' in data:
                 text += f"- Prediction: **{data['top_disease']}**\n"
                 text += f"- Confidence: {data['top_score']*100:.1f}%\n"
+            
+            # Show rule-specific details
+            if component == "Rule Engine" and 'metadata' in data:
+                metadata = data['metadata']
+                fired_rules = metadata.get('fired_rules', [])
+                
+                if fired_rules:
+                    # Group by disease
+                    rules_by_disease = {}
+                    for rule in fired_rules:
+                        disease = rule.conclusion.get('disease', 'unknown')
+                        if disease not in rules_by_disease:
+                           rules_by_disease[disease] = []
+                        rules_by_disease[disease].append(rule)
+                    
+                    primary_disease = result.get('diagnosis', '')
+                    
+                    # Show primary rules
+                    if primary_disease in rules_by_disease:
+                        text += f"- **✅ {len(rules_by_disease[primary_disease])} rules support PRIMARY diagnosis** ({primary_disease})\n"
+                        for rule in rules_by_disease[primary_disease]:
+                            risk = rule.conclusion.get('risk_level', '')
+                            risk_text = f" [{risk.upper()}]" if risk else ""
+                            boost = rule.conclusion.get('probability_boost', 0)
+                            text += f"  - {rule.name}{risk_text} (+{boost*100:.0f}%)\n"
+                    
+                    # Show competing
+                    other_diseases = [d for d in rules_by_disease.keys() if d != primary_disease]
+                    if other_diseases:
+                        text += f"- ⚠️ Competing diagnoses (ruled out by lower confidence):\n"
+                        for disease in sorted(other_diseases):
+                            final_prob = result['probabilities'].get(disease, 0)
+                            text += f"  - {disease}: {len(rules_by_disease[disease])} rules fired, but final confidence only {final_prob*100:.1f}%\n"
+            
             text += "\n"
         
         # Top probabilities
@@ -576,7 +654,7 @@ class ClinicalDiagnosisApp:
                 )
             }
 
-            expl = "## Explanation\n\n"
+            expl = "Explanation\n\n"
             for cls, prob in sorted_probs:
                 full_name = cls
                 p = prob * 100
@@ -1000,7 +1078,7 @@ def create_interface():
                         explain_mode = gr.Radio(
                             choices=["None", "Fast (saliency)", "SHAP (slow)", "Textual"],
                             label="Explanation",
-                            value="Fast (saliency)"
+                            value="Textual"
                         )
 
                 skin_chart = gr.HTML()

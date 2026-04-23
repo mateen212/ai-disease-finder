@@ -6,8 +6,21 @@
 
 A comprehensive medical diagnosis system combining **symbolic reasoning**, **machine learning**, and **deep learning** for intelligent disease detection with explainable AI.
 
-### 📄 Full Documentation
+### 📄 Complete Documentation
+
+**📘 Academic Documentation (NEW!)**  
+**[→ Comprehensive System Documentation (DOCX Format)](./System_Documentation_Complete.docx)**  
+Complete academic paper with Title, Abstract, Introduction, Literature Review, Methodology, Results, Discussion, Conclusion, and References.
+
+**To generate the documentation:**
+```bash
+pip install python-docx
+python3 generate_documentation.py
+```
+
+**📖 KBS Project Documentation**  
 **[→ View Complete KBS Documentation (KBS_FINAL_DOCUMENTATION.md)](./KBS_FINAL_DOCUMENTATION.md)**  
+**[→ Download PDF Version](https://gitprint.com/kawkmin/vspython/blob/main/KBS_FINAL_DOCUMENTATION.md)**
 
 ---
 
@@ -576,14 +589,42 @@ Edit `config/rules.yaml`:
 
 ## 📚 **DOCUMENTATION**
 
+### Main Documentation Files
+
+| File | Purpose | Format |
+|------|---------|--------|
+| **[System_Documentation_Complete.docx](System_Documentation_Complete.docx)** | 📘 Complete academic paper with full research methodology | Word Document |
+| **[COMPREHENSIVE_SYSTEM_DOCUMENTATION.md](COMPREHENSIVE_SYSTEM_DOCUMENTATION.md)** | 📄 Academic documentation in Markdown format | Markdown |
+| **[generate_documentation.py](generate_documentation.py)** | 🛠️ Script to generate professional DOCX from Markdown | Python Script |
+| **[KBS_FINAL_DOCUMENTATION.md](KBS_FINAL_DOCUMENTATION.md)** | Complete KBS methodology (995 lines) | Markdown |
+| **[README.md](README.md)** | Quick start guide and overview | Markdown |
+
+### Additional Documentation
+
 | File | Purpose |
 |------|---------|
-| **[KBS_FINAL_DOCUMENTATION.md](KBS_FINAL_DOCUMENTATION.md)** | Complete KBS methodology (450+ lines) |
 | **[PROJECT_VERIFICATION_REPORT.md](PROJECT_VERIFICATION_REPORT.md)** | 100% requirement satisfaction proof |
-| **[SETUP_GUIDE.md](SETUP_GUIDE.md)** | Detailed installation guide |
-| **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** | Commands + troubleshooting |
-| **[ARCHITECTURE.md](ARCHITECTURE.md)** | System design |
-| **[colab_train.ipynb](colab_train.ipynb)** | Colab TPU notebook |
+| **[docs/Project_Documentation.md](docs/Project_Documentation.md)** | Project overview and Q&A |
+| **[FIXES_SUMMARY.md](FIXES_SUMMARY.md)** | System improvements log |
+
+### Generate Professional Documentation
+
+To create the professionally formatted Word document:
+
+```bash
+# Install required library
+pip install python-docx
+
+# Generate DOCX file
+python3 generate_documentation.py
+```
+
+This will create `System_Documentation_Complete.docx` with:
+- ✅ Professional title page
+- ✅ Academic paper structure (Abstract, Introduction, Literature Review, etc.)
+- ✅ Formatted tables, headings, and sections
+- ✅ Proper styling and spacing
+- ✅ Ready for submission or presentation
 
 ---
 

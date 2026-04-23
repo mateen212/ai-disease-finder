@@ -46,6 +46,12 @@ class NeuroSymbolicFusion:
         self.strategy = fusion_config.get('strategy', 'weighted_average')
         self.min_confidence = fusion_config.get('min_confidence', 0.1)
         
+        # Dynamic boosting configuration
+        boosting_config = fusion_config.get('dynamic_boosting', {})
+        self.dynamic_boosting_enabled = boosting_config.get('enabled', False)
+        self.high_confidence_threshold = boosting_config.get('high_confidence_threshold', 0.7)
+        self.high_confidence_rule_weight = boosting_config.get('high_confidence_rule_weight', 0.75)
+        
         # Disease categories
         diseases_config = self.config.get('diseases', {})
         self.clinical_diseases = diseases_config.get('clinical', ['dengue', 'covid19', 'pneumonia'])
@@ -53,6 +59,8 @@ class NeuroSymbolicFusion:
         
         logger.info(f"Fusion strategy: {self.strategy}")
         logger.info(f"Weights: {self.weights}")
+        if self.dynamic_boosting_enabled:
+            logger.info(f"Dynamic boosting enabled: threshold={self.high_confidence_threshold}, boosted_weight={self.high_confidence_rule_weight}")
     
     def _load_config(self) -> Dict[str, Any]:
         """Load configuration from YAML file"""
@@ -93,6 +101,22 @@ class NeuroSymbolicFusion:
             'cnn': {}
         }
         
+        # Determine if we should use dynamic boosting
+        # When high-confidence rules fire, increase rule weight
+        max_rule_score = max(rule_scores.values()) if rule_scores else 0.0
+        use_boosted_weights = (
+            self.dynamic_boosting_enabled and 
+            max_rule_score >= self.high_confidence_threshold
+        )
+        
+        if use_boosted_weights:
+            logger.info(f"🔥 Dynamic boosting activated: Rule score {max_rule_score:.2f} >= threshold {self.high_confidence_threshold}")
+            current_rule_weight = self.high_confidence_rule_weight
+            current_rf_weight = 1.0 - current_rule_weight
+        else:
+            current_rule_weight = self.weights['rule_based']
+            current_rf_weight = self.weights['random_forest']
+        
         # Process clinical diseases (rule + RF)
         for disease in self.clinical_diseases:
             rule_score = rule_scores.get(disease, 0.0)
@@ -101,11 +125,11 @@ class NeuroSymbolicFusion:
             if self.strategy == 'weighted_average':
                 # Weighted average of rule and RF scores
                 combined = (
-                    self.weights['rule_based'] * rule_score +
-                    self.weights['random_forest'] * rf_score
+                    current_rule_weight * rule_score +
+                    current_rf_weight * rf_score
                 )
                 # Normalize by sum of weights (since CNN doesn't apply)
-                weight_sum = self.weights['rule_based'] + self.weights['random_forest']
+                weight_sum = current_rule_weight + current_rf_weight
                 combined_scores[disease] = combined / weight_sum
             
             elif self.strategy == 'max':
@@ -114,10 +138,10 @@ class NeuroSymbolicFusion:
             
             else:  # Default to weighted average
                 combined = (
-                    self.weights['rule_based'] * rule_score +
-                    self.weights['random_forest'] * rf_score
+                    current_rule_weight * rule_score +
+                    current_rf_weight * rf_score
                 )
-                weight_sum = self.weights['rule_based'] + self.weights['random_forest']
+                weight_sum = current_rule_weight + current_rf_weight
                 combined_scores[disease] = combined / weight_sum
             
             # Track contributions

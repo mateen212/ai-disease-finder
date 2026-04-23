@@ -132,7 +132,8 @@ class HybridDiagnosticSystem:
                 'Rule Engine': {
                     'top_disease': rule_result.get('top_disease', 'none'),
                     'top_score': rule_result.get('top_score', 0.0),
-                    'fired_rules': rule_result.get('rule_count', 0)
+                    'fired_rules': rule_result.get('rule_count', 0),
+                    'metadata': rule_result  # Pass full rule result including fired_rules list
                 },
                 'Random Forest': {
                     'top_disease': rf_result.get('top_disease', 'none'),

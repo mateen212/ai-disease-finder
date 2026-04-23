@@ -15,8 +15,9 @@ cnn:
   architecture: "efficientnet_b0"  # Options: resnet50, efficientnet_b0, mobilenet_v2
   pretrained: true
   num_classes: 5  # Skin diseases: melanoma, eczema, psoriasis, acne, normal/healthy
-  input_size: 224
-  batch_size: 32
+  input_size: 512
+  # For higher input resolution reduce batch size to avoid OOM on typical GPUs
+  batch_size: 8
   learning_rate: 0.001
   epochs: 20  # Reduced for demo (use 50+ for production)
   early_stopping_patience: 5
@@ -37,16 +38,25 @@ cnn:
 
 fusion:
   # Weights for combining different components
+  # For clinical diseases: rules have more weight since they encode expert knowledge
+  # For skin diseases: CNN has higher weight for visual analysis
   weights:
-    rule_based: 0.3
-    random_forest: 0.5
-    cnn: 0.2  # Only applies to skin conditions
+    rule_based: 0.6      # Increased: Rules encode WHO/CDC clinical guidelines
+    random_forest: 0.3   # Decreased: RF helps but rules are more reliable for clear cases  
+    cnn: 0.2             # Only applies to skin conditions
   
   # Fusion strategy: "weighted_average", "max", "stacking"
   strategy: "weighted_average"
   
   # Minimum confidence threshold
   min_confidence: 0.1
+  
+  # Dynamic boosting: Increase rule weight when high-confidence rules fire
+  dynamic_boosting:
+    enabled: true
+    # When rule score exceeds threshold, increase rule weight
+    high_confidence_threshold: 0.7
+    high_confidence_rule_weight: 0.75  # Boost to 75% when strong rules fire
 
 explainability:
   shap:
@@ -131,4 +141,8 @@ kaggle_datasets:
     - "mdtuser/dengue-dataset"
   
   skin_lesions:
-    - "kmader/skin-cancer-mnist-ham10000"
+    - "mateenzahid/acne-dataset"
+    - "mateenzahid/eczema-dataset"
+    - "mateenzahid/melanoma-dataset"
+    - "mateenzahid/normal-skin-dataset"
+    - "mateenzahid/psoriasis-dataset"
