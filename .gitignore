@@ -26,12 +26,12 @@ env/
 ENV/
 
 # Data and Models
-data/
-models/
-*.h5
-*.pkl
-*.pth
-*.ckpt
+# data/
+# models/
+# *.h5
+# *.pkl
+# *.pth
+# *.ckpt
 
 # Kaggle
 .kaggle/
