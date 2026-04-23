@@ -607,7 +607,7 @@ Edit `config/rules.yaml`:
 | **[docs/Project_Documentation.md](docs/Project_Documentation.md)** | Project overview and Q&A |
 | **[FIXES_SUMMARY.md](FIXES_SUMMARY.md)** | System improvements log |
 
-### Generate Professional Documentation
+### Generate Przofessional Documentation
 
 To create the professionally formatted Word document:
 

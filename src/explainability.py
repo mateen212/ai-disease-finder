@@ -438,6 +438,76 @@ class ExplainabilityModule:
                 sections[section_name] = ' '.join(relevant[:2])  # Max 2 sentences
         
         return sections
+
+    def _extract_key_guidance_points(self, guidance: Any, disease: str) -> Dict[str, str]:
+        """
+        Generic extractor for guideline content. Accepts either the dict returned
+        by `get_guidance_for_disease` or raw text and returns structured
+        sections useful for narrative synthesis (overview, symptoms,
+        diagnosis, risk_factors, treatment, prevention).
+        """
+        # Normalize input (guidance may be a dict {'content':..., 'source':...})
+        content = ""
+        try:
+            if isinstance(guidance, dict):
+                content = guidance.get('content', '') or ''
+            else:
+                content = str(guidance or '')
+        except Exception:
+            content = ''
+
+        if not content or len(content) < 100:
+            return {}
+
+        # If clinical disease, delegate to clinical-specific extractor
+        disease_lower = (disease or '').lower()
+        if any(x in disease_lower for x in ['covid', 'dengue', 'pneumonia']):
+            return self._extract_key_guidance_points_clinical(content, disease)
+
+        # Generic extraction for other conditions (e.g., skin diseases)
+        text = re.sub(r'\s+', ' ', content)
+
+        # Split into candidate sentences
+        sentences = re.split(r'(?<=[.!?])\s+', text)
+
+        sections = {}
+
+        keywords = {
+            'overview': ['overview', 'background', 'summary', 'about', 'introduction'],
+            'symptoms': ['symptom', 'itch', 'itching', 'pruritus', 'lesion', 'scaly', 'erythema', 'plaque', 'rash', 'red'],
+            'diagnosis': ['dermoscopy', 'biopsy', 'histopath', 'histology', 'diagnos', 'examination', 'confirm'],
+            'risk_factors': ['risk factor', 'family history', 'genetic', 'uv', 'sun', 'tanning', 'smoking', 'immunosuppress'],
+            'treatment': ['treatment', 'therapy', 'topical', 'systemic', 'corticosteroid', 'phototherapy', 'biologic', 'methotrexate', 'antibiotic'],
+            'prevention': ['prevention', 'sunscreen', 'sun protection', 'avoid', 'protective', 'reduce risk']
+        }
+
+        # Basic exclusion and quality checks
+        exclude_patterns = [r'©|copyright|all rights reserved|creative commons', r'isbn', r'table of content', r'appendix']
+
+        for section_name, kws in keywords.items():
+            relevant = []
+            for sent in sentences:
+                s = sent.strip()
+                if not s or len(s) < 40 or len(s) > 600:
+                    continue
+                if any(re.search(pat, s, re.I) for pat in exclude_patterns):
+                    continue
+                s_lower = s.lower()
+                if any(kw in s_lower for kw in kws):
+                    # Avoid grabbing headings or boilerplate
+                    words = s.split()
+                    caps_words = [w for w in words if w.isupper() and len(w) > 2]
+                    if len(caps_words) > len(words) * 0.4:
+                        continue
+                    relevant.append(s)
+                if len(relevant) >= 2:
+                    break
+            if relevant:
+                # Clean and keep up to two sentences/paragraphs
+                cleaned = ' '.join([self._clean_extracted_text(r) for r in relevant[:2]])
+                sections[section_name] = cleaned
+
+        return sections
     
     def _synthesize_clinical_guidance(self, sections: Dict[str, str], disease: str, source: str) -> str:
         """
